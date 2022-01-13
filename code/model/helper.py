@@ -1,21 +1,26 @@
 import inspect
 from math import ceil, sqrt
+from typing import Callable, Literal, Union
 from matplotlib import pyplot as plt
 import numpy as np
 from scipy.integrate import simpson
-from typing import Callable, Dict, List, Literal, Union
-from model.expression import Expression
+from model.experience_data import ExperienceData
+from model.scope import Scope, Data
+from model.expression import Expression, ExpressionsList
 from model.constants import Constants
-from model.types import Data, ExpressionsList, Uncert
+from model.types import Uncertainty
+
 
 class Helper:
     """Helper class handling useful calculations and functions."""
     @staticmethod
-    def fileToData(file: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_', measurements_title_line: int = 1) -> dict[str, dict[str, Union[float, dict]]]:
+    # pylint: disable=E1136,R0914
+    def file_to_data(path: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_',
+                     measurements_title_line: int = 1) -> ExperienceData:
         """Convers a measurments data file to python dictionary."""
-        with open(file) as f:
-            global_data = {}
-            lines = f.readlines()
+        with open(path) as file:
+            global_data = ExperienceData()
+            lines = file.readlines()
             entries = [x.strip().lower() for x in lines[data_title_line].split(',')]
 
             try:
@@ -30,179 +35,246 @@ class Helper:
                 values = line.split(',')
                 assert len(entries) == len(values), "Titles and values count don't match."
 
-                if id_index == None:
+                if id_index is None:
                     _id = i
                 else:
                     _id = values[id_index].strip()
-                
+
                 local_data = {}
                 for j, entry in enumerate(entries):
-                    if entry == 'id': continue
+                    if entry == 'id':
+                        continue
                     local_data[entry] = float(values[j])
-                    if id_index != None:
-                        local_data['graph'] = Helper.measurementsToData(f"{file.strip().removesuffix('.csv')}/{measurements_file_prefix}{_id}.csv", measurements_title_line)
 
+                    if id_index is not None:
+                        scopes = Helper.measurements_to_scope_data(
+                            f"{path.strip().removesuffix('.csv')}/{measurements_file_prefix}{_id}.csv", measurements_title_line)
+
+                        if len(scopes) > 1:
+                            for k in range(len(scopes)):
+                                local_data[f'graph{k}'] = scopes[k]
+                        else:
+                            local_data['graph'] = scopes[0]
                 global_data[_id] = local_data
 
-        # print(global_data)
         return global_data
-    
+
     @staticmethod
-    def measurementsToData(file: str, measurements_title_line: int = 1):
+    def measurements_to_scope_data(path: str, measurements_title_line: int = 1) -> list[Scope]:
         """Converts measurments from a Scope to readable dict."""
-        with open(file) as f:
-            lines = f.readlines()
+
+        with open(path) as file:
+            lines = file.readlines()
             entries = [x.strip().lower() for x in lines[measurements_title_line].split(',')]
-            n = len(entries)
-            temp: dict[str, list[float]] = {}
-            for i in range(n):
-                temp[entries[i]] = []
+            columns_count = len(entries)
+            temp_data: dict[str, list[float]] = {}
+            for i in range(columns_count):
+                temp_data[entries[i]] = []
             for line in lines[measurements_title_line + 1:]:
-                if line.strip().startswith('#'): continue
+                if line.strip().startswith('#'):
+                    continue
                 try:
                     values = [float(x) for x in line.split(',')]
-                    for i in range(n):
-                        temp[entries[i]].append(values[i])
-                except:
+                    for i in range(columns_count):
+                        temp_data[entries[i]].append(values[i])
+                except ValueError:
                     pass
 
-            data: dict[str, list[float]] = {}
-            for i in range(n):
-                data[entries[i]] = np.array(temp[entries[i]]) 
-
-        return data            
+        return [Scope({
+            entries[0]: np.array(temp_data[entries[0]]),
+            entries[i]: np.array(temp_data[entries[i]])}
+        ) for i in range(1, columns_count)]
 
     @staticmethod
-    def computeIntegral(X: list[float], Y: list[float], threshold: float = 0.0, scaling_function: Callable[..., float] = lambda y: y, scaling_aguments: list[float] = []):
+    def compute_integral(x_data: list[float],
+                         y_data: list[float],
+                         threshold: float = 0.0,
+                         scaling_function: Callable[...,
+                                                    float] = lambda y: y,
+                         scaling_aguments: list[float] = None):
         """Calculates the integral for a given graph.
 
         `Y` axis values can be scaled using the `scaling_function` attribute.
         """
 
-        def aboveThreshhold(val: float):
+        def above_threshhold(val: float):
             return abs(val) >= abs(threshold)
 
-        assert len(X) == len(Y), "The two lists lengths don't match."
+        assert len(x_data) == len(y_data), "The two lists lengths don't match."
 
-        assert len(inspect.signature(scaling_function).parameters) == len(scaling_aguments) + 1, "The argument count for the scaling function is wrong."
-        
-        for i in range(len(Y)):
-            if not aboveThreshhold(Y[i]):
-                Y[i] = 0
+        assert len(inspect.signature(scaling_function).parameters) == len(
+            scaling_aguments or []) + 1, "The argument count for the scaling function is wrong."
 
-        Y = scaling_function(Y, *scaling_aguments)
+        for i, val in enumerate(y_data):
+            if not above_threshhold(val):
+                y_data[i] = 0
 
-        integral: float = simpson(Y, X)
+        _y = scaling_function(y_data, *(scaling_aguments or []))
+
+        integral: float = simpson(_y, x_data)
         return integral
 
     @staticmethod
-    def computeExpressions(type: Literal['data', 'uncert'], expressions: ExpressionsList, data: Data, uncert: Uncert = None, id: str = None):
+    # pylint: disable=E1136
+    def compute_expressions(expr_type: Literal['data', 'uncert'], expressions: ExpressionsList,
+                            data: Data, uncert: Uncertainty = None, element_id: str = None):
         """Calculates the value (or uncertainty) of a dataset entry using data from the dataset and a given expression."""
-        
-        assert (type == 'uncert' and uncert) or not uncert, 'Uncertainties are required.'
-        
-        _data = uncert if type == 'uncert' else data
+
+        assert (expr_type == 'uncert' and uncert) or not uncert, 'Uncertainties are required.'
+
+        _data = uncert if expr_type == 'uncert' else data
 
         for (expr_key, expression) in expressions.items():
-            if (id != None):
-                if type == 'uncert':
+            if element_id is not None:
+                if expr_type == 'uncert':
                     try:
-                        _data[id][expr_key] = expression(data[id], uncert[id])
-                    except:
+                        _data[element_id][expr_key] = expression(data[element_id], uncert[element_id])
+                    except KeyError:
                         pass
-                else:        
-                    _data[id][expr_key] = expression(data[id])
+                else:
+                    _data[element_id][expr_key] = expression(data[element_id])
             else:
-                for (_id) in data.keys():
-                    assert not expr_key in _data[_id].keys(), f'The key "{expr_key}" already exists in the provided data.'
-                    _data[_id][expr_key] = expression(data[_id], uncert[_id] if (type == 'uncert') else None)
-    
+                for _id in data.keys():
+                    assert expr_key not in _data[_id].keys(), f'The key "{expr_key}" already exists in the provided data.'
+                    _data[_id][expr_key] = expression(data[_id], uncert[_id] if (expr_type == 'uncert') else None)
+
     @staticmethod
-    def defaultUncertainties(data: Data, uncert: Uncert):
+    def default_uncertainties(data: Data, uncert: Uncertainty):
         """Returns default uncertainties for certain dataset entries."""
 
-        DefaultUncertainties = [
+        default_uncertainties = [
             ('h', Expression(lambda: Constants.u_h)),
             ('r', Expression(lambda: Constants.u_r))
         ]
-        for (expr_key, expression) in DefaultUncertainties:
+        for (expr_key, expression) in default_uncertainties:
             variables = list(list(data.values())[0].keys())
             if expr_key in variables:
-                for (id) in data.keys():
-                    uncert[id][expr_key] = expression(data[id], uncert[id])
+                for key in data.keys():
+                    uncert[key][expr_key] = expression(data[key], uncert[key])
 
     @staticmethod
-    def getGlobalGraphMinMax(data: dict[str, dict[str, Union[float, dict]]], ax: Literal['x', 'y'] = 'y'):
+    # pylint: disable=E1136
+    def get_global_scope_min_max(data: dict[str, dict[str, Union[float, Scope]]], axis: Literal['x', 'y'] = 'y'):
         """Computes graph's extremum values for X and Y axes on the whole dataset."""
-        
-        ax_key = list(data[list(data.keys())[0]]['graph'].keys())[{'x': 0, 'y': 1}[ax]]
-        min: float = None
-        max: float = None
-        
-        def localMinMax(list: list[float]):
-            _min: float = list[0]
-            _max: float = list[0]
+        g_min: float = None
+        g_max: float = None
 
-            for x in list:
-                if x < _min:
-                    _min = x
-                if x > _max:
-                    _max = x
+        def local_min_max(arr: list[float]):
+            _min: float = arr[0]
+            _max: float = arr[0]
 
-            return (_min, _max) 
+            for _x in arr:
+                if _x < _min:
+                    _min = _x
+                if _x > _max:
+                    _max = _x
+
+            return (_min, _max)
 
         for _data in data.values():
-            local_min, local_max = localMinMax(_data['graph'][ax_key])
-            if min == None or local_min < min:
-                min = local_min
-            if max == None or local_max > max:
-                max = local_max
+            local_min, local_max = local_min_max(_data['graph'].x_data if axis == 'x' else _data['graph'].y_data)
+            if min is None or local_min < g_min:
+                g_min = local_min
+            if max is None or local_max > g_max:
+                g_max = local_max
         return (min, max)
 
-    def safeListCopy(o: list) -> list:
+    @staticmethod
+    def safe_list_copy(obj: any) -> list:
         """Returns a shallow copy of a python `list`."""
         copy: list = []
-        for value in o:
-            if isinstance(value, Dict):
-                copy.append(Helper.safeDictCopy(o))
-            elif isinstance(value, List):
-                copy.append(Helper.safeListCopy(o))
+        for value in obj:
+            if isinstance(value, dict):
+                copy.append(Helper.safe_dict_copy(obj))
+            elif isinstance(value, list):
+                copy.append(Helper.safe_list_copy(obj))
             else:
                 copy.append(value)
         return copy
-            
+
     @staticmethod
-    def safeDictCopy(o: dict) -> dict:
+    def safe_dict_copy(obj: any) -> dict:
         """Returns a shallow copy of a python `dict`."""
-        copy: dict = {}
-        for key, value in o.items():
-            if isinstance(value, Dict):
-                copy[key] = Helper.safeDictCopy(value)
-            elif isinstance(value, List):
-                copy[key] = Helper.safeListCopy(value)
+        if isinstance(obj, ExperienceData):
+            copy: ExperienceData = ExperienceData()
+            copy.set_data_keys(obj.get_data_keys())
+        else:
+            copy: dict = {}
+        if not hasattr(obj, 'items'):
+            return obj
+
+        for key, value in obj.items():
+            if isinstance(value, dict):
+                copy[key] = Helper.safe_dict_copy(value)
+            elif isinstance(value, list):
+                copy[key] = Helper.safe_list_copy(value)
             else:
                 copy[key] = value
         return copy
 
     @staticmethod
-    def trace(data: dict[str, list[float]], scaling_function = lambda x: x):
+    def trace(data: dict[str, list[float]], scaling_function=lambda x: x):
         """Traces a graph using `matplolib.pyplot`"""
 
-        x, y = list(data.keys())
-        X = np.array(data[x])
-        Y = scaling_function(np.array(data[y]))
+        x_label, y_label = list(data.keys())
+        x_data = np.array(data[x_label])
+        y_data = scaling_function(np.array(data[y_label]))
 
-        plt.plot(X, Y)
+        plt.plot(x_data, y_data)
 
         plt.show()
 
     @staticmethod
-    def initializeGraph(n: int):
+    def initialize_graph(plots_count: int):
         """Computes the graph matrix size."""
-        columns = ceil(sqrt(n))
-        rows = ceil(n / columns)
-        is2D = rows > 1
-        return plt.subplots(rows, columns)[1], is2D, columns, rows
+        columns = ceil(sqrt(plots_count))
+        rows = ceil(plots_count / columns)
+        is_graph_2d = rows > 1
+        return plt.subplots(rows, columns)[1], is_graph_2d, columns, rows
 
+    @staticmethod
+    # pylint: disable=E1136
+    def compute_angle(angle: float, src: Literal['deg', 'rad'], dst: Literal['deg', 'rad'], ):
+        if not (src in ('deg', 'rad') and dst in ('deg', 'rad')):
+            raise Exception('Unknown value for source or destination unit.')
+        norm: float
 
+        destinations = {'deg': 180, 'rad': Constants.pi}
 
+        if src == 'deg':
+            # [-360; 360] -> [-1; 1]
+            norm = angle / 360
+        else:
+            # [-2pi; 2pi] -> [-1; 1]
+            norm = angle / (2 * Constants.pi)
+
+        if -1 < norm < -0.5:
+            norm += 1
+        elif 0.5 < norm < 1:
+            norm -= 1
+
+        return norm * destinations[dst]
+
+    @staticmethod
+    def impedence_from_graph(path: str, R: float, f_min: float = 30000, f_max: float = 95000, invert_data: bool = False):
+        # z = u / i
+        scopes = Helper.measurements_to_scope_data(path)
+
+        if len(scopes) != 2:
+            raise Exception('Two scopes measurements are required to compute impedence.')
+        if len(scopes[0].y_data) != len(scopes[1].y_data):
+            raise Exception('Data length doesn\' match.')
+        # abs(e - u) / abs(u) * r)
+        # e: generator
+        # u: resistor
+        U = scopes[0].y_data if not invert_data else scopes[1].y_data
+        E = scopes[1].y_data if not invert_data else scopes[0].y_data
+
+        F = np.linspace(f_min, f_max, len(scopes[0].y_data))
+
+        Z = []
+
+        for i, _ in enumerate(U):
+            Z.append(abs(E[i] - U[i]) / abs(U[i]) * R)
+
+        return Scope({'f': np.array(F), 'Z': np.array(Z)})

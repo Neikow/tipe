@@ -1,7 +1,7 @@
-from typing import Union, Callable
-from model.expression import Expression
+"""Types"""
+from typing import Callable
 
-Data = dict[str, dict[str, Union[float, dict]]]
-Uncert = dict[str, dict[str, float]]
-ExpressionsList = dict[str, Expression]
+
+# pylint: disable = unsubscriptable-object
+Uncertainty = dict[str, dict[str, float]]
 ScaleFunction = Callable[..., float]

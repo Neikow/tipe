@@ -1,6 +1,9 @@
+# pylint: disable = invalid-name
 class Uncertainties:
-    """Wrapper class for uncertainties calculation."""
-    '''Wikipedia: https://fr.wikipedia.org/wiki/Propagation_des_incertitudes'''
+    """Wrapper class for uncertainties calculation.
+
+    Wikipedia: https://fr.wikipedia.org/wiki/Propagation_des_incertitudes"""
+
     @staticmethod
     def sum(dB: float, dC: float) -> float:
         '''`A = B + C`'''
