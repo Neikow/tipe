@@ -1,11 +1,4 @@
-# from numpy import cos, exp, inf
-from xmlrpc.client import boolean
-from model.helper import Helper
-# from model.constants import Constants
-from model.expression import Expression
-from model.expressions import Expressions
-from model.curve import Curve
-from model.experiment import Experiment
+from newton import *
 
 class Tests:
     '''Various tests for this program.'''
@@ -93,7 +86,7 @@ class Calibrations:
 class Experiments:
     '''Experiments conducted during the project.'''
     @staticmethod
-    def Experiment1(default: boolean = True):
+    def Experiment1(default: bool = True):
         '''???'''
         E = Experiment('measures/exp1.csv', {})
 
@@ -103,7 +96,7 @@ class Experiments:
         return E
 
     @staticmethod
-    def Experiment2(default: boolean = True):
+    def Experiment2(default: bool = True):
         '''???'''
         E = Experiment('measures/exp2.csv', {})
 
@@ -113,7 +106,7 @@ class Experiments:
         return E
 
     @staticmethod
-    def Experiment3(default: boolean = True):
+    def Experiment3(default: bool = True):
         '''Dropping a metal ball on a piezo from a chaning height but measuring the impact with a fixed resistance.'''
         magnet_height = 27.9E-2
 
@@ -135,7 +128,7 @@ class Experiments:
         return E
 
     @staticmethod
-    def Experiment4(default: boolean = True):
+    def Experiment4(default: bool = True):
         '''Dropping a metal ball on a piezo from a fixed height but measuring the impact with a changing resistance.'''
         E = Experiment('measures/exp4.csv', {
             'Ee': Expressions.Ee,
