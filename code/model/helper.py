@@ -1,5 +1,6 @@
 import inspect
 from math import ceil, sqrt, tan
+import os
 from typing import Callable, Literal, Union
 from matplotlib import pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -14,6 +15,11 @@ from model.types import Uncertainty
 
 class Helper:
     """Helper class handling useful calculations and functions."""
+
+    @staticmethod
+    def init():
+        plt.figure(figsize=(19, 10), dpi=100)
+
     @staticmethod
     # pylint: disable=E1136,R0914
     def fileToData(path: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_',
@@ -61,7 +67,11 @@ class Helper:
         return global_data
 
     @staticmethod
-    def measurementsToScopeData(path: str, measurements_title_line: int = 1) -> list[Scope]:
+    def fileNameFromPath(path: str):
+        return os.path.splitext(os.path.basename(path))[0]
+
+    @staticmethod
+    def measurementsToScopeData(path: str, id: str = None, measurements_title_line: int = 1) -> list[Scope]:
         """Converts measurments from a Scope to readable dict."""
 
         with open(path, 'r', encoding='utf-8') as file:
@@ -81,7 +91,9 @@ class Helper:
                 except ValueError:
                     pass
 
-        return [Scope({
+        _id = id or Helper.fileNameFromPath(path)
+
+        return [Scope(_id, {
             entries[0]: np.array(temp_data[entries[0]]),
             entries[i]: np.array(temp_data[entries[i]])}
         ) for i in range(1, columns_count)]
@@ -213,7 +225,7 @@ class Helper:
         return copy
 
     @staticmethod
-    def trace(data: dict[str, list[float]], scaling_function=lambda x: x):
+    def trace(data: dict[str, list[float]], scaling_function=lambda x: x, custom_name: str = None):
         """Traces a graph using `matplolib.pyplot`"""
 
         x_label, y_label = list(data.keys())
@@ -222,7 +234,10 @@ class Helper:
 
         plt.plot(x_data, y_data)
 
-        plt.show()
+        if custom_name:
+            Helper.show(custom_name)
+
+        # plt.show()
 
     @staticmethod
     def initializeGraph(plots_count: int):
@@ -279,7 +294,7 @@ class Helper:
         for i, _ in enumerate(U):
             Z.append(abs(E[i] - U[i]) / abs(U[i]) * R)
 
-        return Scope({'f': np.array(F), 'Z': np.array(Z)})
+        return Scope(Helper.fileNameFromPath(path), {'f': np.array(F), 'Z': np.array(Z)})
 
     @staticmethod
     def coefficient(coeff: str, fm: float, fM: float):
@@ -298,5 +313,30 @@ class Helper:
 
         print(addUnit(f'Expected: {expected}'))
         print(addUnit(f'Got: {result}'))
-        err = round((abs(expected - result) / expected if expected != 0 else abs(expected - result) / result if result != 0 else -1) * 1000) / 10
+        err = round((abs(expected - result) / expected if expected !=
+                    0 else abs(expected - result) / result if result != 0 else -1) * 1000) / 10
         print(f'Relative error: {err}%')
+
+    @staticmethod
+    def formatFileName(experience_name: str = None, args: list[tuple[str, str]] | str = None):
+        s = experience_name
+        if args:
+            if isinstance(args, list):
+                for x in args:
+                    s += f'_({x[0]}, {x[1]})'
+            elif isinstance(args, str):
+                s += f'_{args}'
+            else:
+                raise Exception(f'Unknown type: {type(args)}')
+
+        return s
+
+    @staticmethod
+    def show(experience_name: str = None, args: list[tuple[str, str]] | str = None):
+        '''Custom `pyplot` show command that also saves the plot.'''
+        if experience_name:
+            fname = Helper.formatFileName(experience_name, args)
+            plt.savefig(f'images/graphs/{fname}.png', dpi=500)
+            plt.savefig(f'images/graphs/{fname}.svg', dpi=500)
+
+        plt.show()

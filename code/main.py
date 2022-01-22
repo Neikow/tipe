@@ -7,14 +7,20 @@ from model.expressions import Expressions
 from model.curve import Curve
 from model.experiment import Experiment
 
-
 class Tests:
     '''Various tests for this program.'''
+    @staticmethod
+    def FingerShock():
+        '''Testing the plotting algorithm.'''
+        D = Helper.measurementsToScopeData('measures/tests/finger_shock.csv')[0]
+
+        D.plot()
+
     @staticmethod
     def Empty():
         '''Measuring the impact of noise on the integral by applying no tension on the resistor.'''
         R = 1
-        D = Helper.measurementsToScopeData('measures/tests/test_a_vide.csv')[0]
+        D = Helper.measurementsToScopeData('measures/tests/empty_noise_test.csv')[0]
 
         Helper.expect(Helper.computeIntegral(D.x_data, D.y_data, scaling_function=lambda x: x * x / R), 0, 'J')
         D.plot()
@@ -23,7 +29,7 @@ class Tests:
     def Square():
         '''Generating a single square pulse (1.0V, 0.1s) and calculating it's energy to test the integration algorithm.'''
         R = 1
-        D = Helper.measurementsToScopeData('measures/tests/test_creneaux.csv')[0]
+        D = Helper.measurementsToScopeData('measures/tests/square_signal.csv')[0]
 
         Helper.expect(Helper.computeIntegral(D.x_data, D.y_data, scaling_function=lambda x: x * x / R), 0.1, 'J')
         D.plot()
@@ -34,7 +40,7 @@ class Calibrations:
     @staticmethod
     def Calibration1():
         '''We measured tension on the generator and a resistor to calculate the impedence.'''
-        E = Experiment('measures/etalonage_piezo1.csv', {
+        E = Experiment('measures/piezo_calibration1.csv', {
             'Z': Expression(lambda e, u, r: abs(e - u) / abs(u) * r),
             'phi': Expression(lambda phi_deg: Helper.computeAngle(phi_deg, 'deg', 'rad')),
         }, {})
@@ -44,7 +50,7 @@ class Calibrations:
     @staticmethod
     def Calibration2():
         '''We measured tension on the generator and a resistor to calculate the impedence.'''
-        E = Experiment('measures/etalonage_piezo2.csv', {
+        E = Experiment('measures/piezo_calibration2.csv', {
             'Z': Expression(lambda e, u, r: abs(e - u) / abs(u) * r),
             'phi': Expression(lambda phi_deg: Helper.computeAngle(phi_deg, 'deg', 'rad')),
         }, {})
@@ -56,10 +62,11 @@ class Calibrations:
         '''We created an impedence-meter from a resistor (200 ohm), a generator
            and two low-pass filters.
 
-           The measures were taken automatically over a period of 2s.
+           The measures were taken automatically over a period of 2s with a frequency
+           varying linearly between two values.
 
-           The filter is an envelope detector, made with a 1k ohm resistor,
-           470nF capactitor and a diode.
+           The filter is an [envelope detector](https://fr.wikipedia.org/wiki/Circuit_d%C3%A9tecteur_d%27enveloppe),
+           made with a 1k ohm resistor, 470nF capactitor and a diode.
         '''
         R = 200
 
@@ -88,7 +95,7 @@ class Experiments:
     @staticmethod
     def Experiment1(default: boolean = True):
         '''???'''
-        E = Experiment('measures/chutes.csv', {})
+        E = Experiment('measures/exp1.csv', {})
 
         if default:
             E.traceMeasurementGraphs()
@@ -98,7 +105,7 @@ class Experiments:
     @staticmethod
     def Experiment2(default: boolean = True):
         '''???'''
-        E = Experiment('measures/chutes2.csv', {})
+        E = Experiment('measures/exp2.csv', {})
 
         if default:
             E.traceMeasurementGraphs()
@@ -110,7 +117,7 @@ class Experiments:
         '''Dropping a metal ball on a piezo from a chaning height but measuring the impact with a fixed resistance.'''
         magnet_height = 27.9E-2
 
-        E = Experiment('measures/chutes3.csv', {
+        E = Experiment('measures/exp3.csv', {
             'h': Expression(lambda h_offset: magnet_height - h_offset),
             'Ee': Expressions.Ee,
             'Ep': Expressions.Ep,
@@ -130,7 +137,7 @@ class Experiments:
     @staticmethod
     def Experiment4(default: boolean = True):
         '''Dropping a metal ball on a piezo from a fixed height but measuring the impact with a changing resistance.'''
-        E = Experiment('measures/chutes4.csv', {
+        E = Experiment('measures/exp4.csv', {
             'Ee': Expressions.Ee,
             'Ep': Expressions.Ep,
             'Ee_Ep': Expressions.Ee_Ep,
@@ -148,12 +155,13 @@ class Experiments:
 
 
 if __name__ == '__main__':
+    Helper.init()
     # ================================
     #              Tests
     # ================================
 
     # Tests.Empty()
-    Tests.Square()
+    # Tests.Square()
 
     # ================================
     #          Calibrations
@@ -161,7 +169,7 @@ if __name__ == '__main__':
 
     # Calibrations.Calibration1()
     # Calibrations.Calibration2()
-    # Calibrations.Calibration3(1)
+    Calibrations.Calibration3(1)
 
     # ================================
     #           Experiments
@@ -171,5 +179,3 @@ if __name__ == '__main__':
     # Experiments.Experiment2()
     # Experiments.Experiment3()
     # Experiments.Experiment4()
-
-    ...

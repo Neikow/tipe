@@ -1,1 +1,0 @@
-On a créé un signal carré de 1V pendant 100ms et on a mesulré l'énérgie à la main pour tester l'algo.

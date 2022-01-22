@@ -72,7 +72,7 @@ class Curve:
                         break
 
         self.has_data = True
-        return self.plot()
+        return self.getData()
 
     def update(self, key: str, data: dict[str, float], uncert: dict[str, float] = None):
         """Updates the `data` and `uncert` of an already populated graph."""
@@ -88,10 +88,10 @@ class Curve:
             self.x_unc[index] = uncert[self.x_label]
             self.y_unc[index] = uncert[self.y_label]
 
-        return self.plot()
+        return self.getData()
 
     # pylint: disable = unsubscriptable-object
-    def plot(self) -> dict[str, Union[list[float], list[str], bool, str]]:
+    def getData(self) -> dict[str, Union[list[float], list[str], bool, str]]:
         """Returns a usable `dict` representing the curve."""
 
         assert self.has_data, 'Can\'t plot a curve without data.'

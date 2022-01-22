@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.gridspec import SubplotSpec
 import numpy as np
+from model.helper import Helper
 from model.types import ScaleFunction
 from scipy.interpolate import make_interp_spline
 from scipy.optimize import curve_fit
@@ -15,6 +16,8 @@ ScopeData = dict[str, list[float]]
 
 class Scope:
     """A wrapper class for holding scope data."""
+    id: str
+
     # Labels
     x_label: str
     y_label: str
@@ -37,8 +40,10 @@ class Scope:
     plot_original: bool
     plot_scaled: bool
 
-    def __init__(self, scope_data: ScopeData) -> None:
+    def __init__(self, id: str, scope_data: ScopeData) -> None:
         keys = list(scope_data.keys())
+
+        self.id = id
 
         self.x_label = keys[0]
         self.x_data = scope_data[self.x_label]
@@ -77,11 +82,11 @@ class Scope:
 
     # pylint: disable = too-many-arguments
     def traceGraph(self, spec: SubplotSpec,
-                    scaling_function: ScaleFunction = None,
-                    scaling_arguments: list[float] = None,
-                    on_same_graph: bool = False,
-                    should_plot_original: bool = True,
-                    should_plot_scaled: bool = True) -> list[Line2D]:
+                   scaling_function: ScaleFunction = None,
+                   scaling_arguments: list[float] = None,
+                   on_same_graph: bool = False,
+                   should_plot_original: bool = True,
+                   should_plot_scaled: bool = True) -> list[Line2D]:
         """Draws the scope graph using the provided `spec`."""
 
         self.on_same_graph = on_same_graph
@@ -103,7 +108,7 @@ class Scope:
             if on_same_graph:
                 self.ax_og = self.ax_wrapper
                 self.ax_sc = None
-            elif should_plot_original and plotScaled:
+            elif should_plot_original and should_plot_scaled:
                 inner = spec.subgridspec(2, 1, wspace=0.05, hspace=0.1)
                 curr_fig = plt.gcf()
                 self.ax_og = curr_fig.add_subplot(inner[0, 0])
@@ -134,7 +139,7 @@ class Scope:
         return [self.ln_og, self.ln_sc]
 
     def updateGraph(self, scaling_function: ScaleFunction = None,
-                     scaling_arguments: list[float] = None):
+                    scaling_arguments: list[float] = None):
         """Updates the scaled graph."""
         assert self.ln_sc, 'Nothing to update.'
 
@@ -147,15 +152,23 @@ class Scope:
 
     def copy(self):
         """Returns a copy of the scope. Without the plot data."""
-        return Scope(dict([(self.x_label, self.x_data), (self.y_label, self.y_data)]))
+        return Scope(self.id, dict([(self.x_label, self.x_data), (self.y_label, self.y_data)]))
 
-    def plot(self, show_original: bool = True, interpolate: bool = False, fitting_function: Callable[..., float] = None, bounds: tuple[float, float] = (-inf, inf), x_scale: str = None, y_scale: str = None):
+    def plot(self,
+             show_original: bool = True,
+             interpolate: bool = False,
+             fitting_function: Callable[...,
+                                        float] = None,
+             bounds: tuple[float,
+                           float] = (-inf,
+                                     inf),
+             x_scale: str = None,
+             y_scale: str = None):
         """Plots the scope in a new window."""
         if not show_original and not interpolate:
             raise Exception('Nothing to show.')
-        
-        xnew = np.linspace(min(self.x_data), max(self.x_data), 300)
 
+        xnew = np.linspace(min(self.x_data), max(self.x_data), 300)
 
         if show_original:
             plt.plot(self.x_data, self.y_data)
@@ -168,15 +181,13 @@ class Scope:
             Y = savgol_filter(Y, 29, 13)
             plt.plot(xnew, Y)
 
-
         if fitting_function:
-            popt, pcov = curve_fit(fitting_function, self.x_data, self.y_data, bounds=bounds)
+            popt = curve_fit(fitting_function, self.x_data, self.y_data, bounds=bounds)[0]
             plt.plot(self.x_data, fitting_function(self.x_data, *popt), 'r-')
-
 
         if x_scale:
             print(x_scale)
-            
+
             plt.xscale(x_scale)
 
         if y_scale:
@@ -185,7 +196,8 @@ class Scope:
         plt.xlabel(self.x_label)
         plt.ylabel(self.y_label)
 
-        plt.show()
+        Helper.show(f'scope_{self.id}' + ('_interpolated' if interpolate else ''))
+        # plt.show()
 
 
 # pylint: disable = unsubscriptable-object

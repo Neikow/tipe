@@ -54,9 +54,11 @@ class Experiment:
                     graph.traceGraph(spec, should_plot_scaled=False)
                     graph.ax_og.set_title(curves_ids[i])
 
-        gris_spec.tight_layout(plt.gcf(), h_pad=-1.6, w_pad=-1)
+        gris_spec.tight_layout(plt.gcf(), h_pad=0.3, w_pad=0.2)
 
-        plt.show()
+        Helper.show(Helper.fileNameFromPath(self.file), 'measurements')
+
+        # plt.show()
 
     def trace(self, curves: list[Curve], ignore: list[str] = None):
         """Traces `Curves` using the current dataset."""
@@ -73,7 +75,7 @@ class Experiment:
 
             if i < curves_count:
                 ax = plt.subplot(spec)
-                data = curves[i].plot()
+                data = curves[i].getData()
                 ax.scatter(data['x'], data['y'])
 
                 ax.set_xlabel(data['x_label'])
@@ -86,7 +88,7 @@ class Experiment:
                     x_pos: float = data['x'][j]
                     y_pos: float = data['y'][j]
                     ax.annotate(_id, (x_pos, y_pos),
-                                  textcoords='offset points', xytext=(0, 5), ha='center')
+                                textcoords='offset points', xytext=(0, 5), ha='center')
                     if data['unc'] and (valid_ux or valid_uy):
                         ax.errorbar(
                             data['x'][j],
@@ -97,7 +99,9 @@ class Experiment:
             else:
                 ax.axis('off')
 
-        plt.show()
+        Helper.show(Helper.fileNameFromPath(self.file), [(curve.x_label, curve.y_label) for curve in curves])
+
+        # plt.show()
 
     def correctMeasurements(
             self,
