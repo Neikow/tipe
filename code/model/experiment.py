@@ -26,21 +26,21 @@ class Experiment:
         self.expr_meas = measurements_expressions or {}
         self.expr_uncert = uncertainties_expressions or {}
 
-        self.data = Helper.file_to_data(file)
+        self.data = Helper.fileToData(file)
 
         self.uncert = {x: {} for x in self.data}
 
-        Helper.compute_expressions('data', self.expr_meas, self.data)
-        Helper.default_uncertainties(self.data, self.uncert)
-        Helper.compute_expressions('uncert', self.expr_uncert, self.data, self.uncert)
+        Helper.computeExpressions('data', self.expr_meas, self.data)
+        Helper.defaultUncertainties(self.data, self.uncert)
+        Helper.computeExpressions('uncert', self.expr_uncert, self.data, self.uncert)
 
-    def trace_measurement_graphs(self, custom_x_axis: str = None, custom_y_axis: str = None, ids: list[str] = None):
+    def traceMeasurementGraphs(self, custom_x_axis: str = None, custom_y_axis: str = None, ids: list[str] = None):
         """Traces Scope graphs of the current dataset."""
-        if 'graph' not in self.data.get_data_keys():
+        if 'graph' not in self.data.getDataKeys():
             assert False, 'The current exprimentdoesn\'t have associated graph.'
 
         count = len(self.data) if ids is None else len(ids)
-        axs, is_fig_2d, col_count = Helper.initialize_graph(count)[:3]
+        axs, is_fig_2d, col_count = Helper.initializeGraph(count)[:3]
 
         curves_ids = ids or list(self.data.keys())
         scopes_count = len(curves_ids)
@@ -63,7 +63,7 @@ class Experiment:
     def trace(self, curves: list[Curve]):
         """Traces `Curves` using the current dataset."""
         curves_count = len(curves)
-        axs, is_fig_2d, col_count = Helper.initialize_graph(curves_count)[:3]
+        axs, is_fig_2d, col_count = Helper.initializeGraph(curves_count)[:3]
 
         for curve in curves:
             curve.populate(self.data, self.uncert)
@@ -100,7 +100,7 @@ class Experiment:
 
         plt.show()
 
-    def correct_measurements(
+    def correctMeasurements(
             self,
             curve: Curve,
             corrected_values: list[str] = None,

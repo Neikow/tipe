@@ -8,7 +8,7 @@ from model.constants import Constants
 class Expressions:
     """Useful expressions."""
     # Energie éléctrique aux bornes de la résistance.
-    Ee = Expression(lambda graph, r, threshold, offset: Helper.compute_integral(
+    Ee = Expression(lambda graph, r, threshold, offset: Helper.computeIntegral(
         graph.x_data, graph.y_data, scaling_function=lambda x: (x + offset) ** 2, threshold=threshold) / r, {'threshold': 0, 'offset': 0})
 
     # Incertitude sur l'énérgie éléctrique aux bornes de la résistance.

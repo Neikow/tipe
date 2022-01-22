@@ -48,18 +48,18 @@ class Scope:
         self.ln_og = None
         self.ln_sc = None
 
-    def set_x_data(self, new_data: list[float]):
+    def setXdata(self, new_data: list[float]):
         """Sets a new value for the X axis."""
         assert len(new_data) == len(self.y_data)
         self.x_data = new_data
 
-    def set_y_data(self, new_data: list[float]):
+    def setYdata(self, new_data: list[float]):
         """Sets a new value for the Y axis."""
         assert len(new_data) == len(self.x_data)
         self.y_data = new_data
 
     # pylint: disable = unsubscriptable-object, inconsistent-return-statements
-    def get_axis(self, axis_type: Literal['wrapper', 'og', 'sc']) -> plt.Axes:
+    def getAxis(self, axis_type: Literal['wrapper', 'og', 'sc']) -> plt.Axes:
         """Returns the given axis if it exists."""
         if axis_type == 'wrapper':
             return self.ax_wrapper
@@ -73,7 +73,7 @@ class Scope:
             return self.ax_sc
 
     # pylint: disable = too-many-arguments
-    def trace_graph(self, spec: SubplotSpec,
+    def traceGraph(self, spec: SubplotSpec,
                     scaling_function: ScaleFunction = None,
                     scaling_arguments: list[float] = None,
                     on_same_graph: bool = False,
@@ -85,22 +85,22 @@ class Scope:
         self.plot_original = should_plot_original
         self.plot_scaled = should_plot_scaled
 
-        def plot_original():
-            self.ln_og, = self.get_axis('og').plot(self.x_data, self.y_data)
+        def plotOriginal():
+            self.ln_og, = self.getAxis('og').plot(self.x_data, self.y_data)
 
-        def plot_scaled():
+        def plotScaled():
             if scaling_function:
                 y_data = [scaling_function(x, *(scaling_arguments or [])) for x in self.y_data]
             else:
                 y_data = self.y_data
-            self.ln_sc, = self.get_axis('sc').plot(self.x_data, y_data)
+            self.ln_sc, = self.getAxis('sc').plot(self.x_data, y_data)
 
-        def create_axes():
+        def createAxes():
             self.ax_wrapper = plt.subplot(spec)
             if on_same_graph:
                 self.ax_og = self.ax_wrapper
                 self.ax_sc = None
-            elif should_plot_original and plot_scaled:
+            elif should_plot_original and plotScaled:
                 inner = spec.subgridspec(2, 1, wspace=0.05, hspace=0.1)
                 curr_fig = plt.gcf()
                 self.ax_og = curr_fig.add_subplot(inner[0, 0])
@@ -120,17 +120,17 @@ class Scope:
                 elif should_plot_scaled:
                     self.ax_sc = self.ax_wrapper
 
-        create_axes()
+        createAxes()
 
         if should_plot_original:
-            plot_original()
+            plotOriginal()
 
         if should_plot_scaled:
-            plot_scaled()
+            plotScaled()
 
         return [self.ln_og, self.ln_sc]
 
-    def update_graph(self, scaling_function: ScaleFunction = None,
+    def updateGraph(self, scaling_function: ScaleFunction = None,
                      scaling_arguments: list[float] = None):
         """Updates the scaled graph."""
         assert self.ln_sc, 'Nothing to update.'

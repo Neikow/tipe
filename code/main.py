@@ -22,7 +22,7 @@ if __name__ == '__main__':
     #     'phi': Expression(lambda phi_deg: Helper.compute_angle(phi_deg, 'deg', 'rad')),
     # }, {})
 
-    Helper.impedence_from_graph('measures/etalonage_piezo3.csv', 200).plot()
+    Helper.impedenceFromGraph('measures/etalonage_piezo3.csv', 200).plot()
 
 
     # E.traceMeasurementGraphs()

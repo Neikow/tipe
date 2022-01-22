@@ -19,7 +19,7 @@ class ExperienceData (dict[str, DataEntry]):
 
     def __setitem__(self, __key: str, val: DataEntry) -> None:
         if not isinstance(val, dict):
-            raise 'The item must be a `dict`.'
+            raise Exception('The item must be a `dict`.')
 
         if not hasattr(self, '_data_keys'):
             self._data_keys = list(val.keys())
@@ -30,7 +30,7 @@ class ExperienceData (dict[str, DataEntry]):
 
         return super().__setitem__(__key, val)
 
-    def get_data_keys(self) -> list[str]:
+    def getDataKeys(self) -> list[str]:
         """Returs the keys of the"""
         if not self._data_keys:
             self._data_keys = []

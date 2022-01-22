@@ -22,20 +22,20 @@ class ValueSlider:
         self.toggle_callback = toggle_callback
         self.slider_callback = slider_callback
         self.slider.set_val(default)
-        self.slider.on_changed(self.on_slider_changed)
+        self.slider.on_changed(self.onSliderChanged)
 
-    def on_slider_changed(self, new_value: float):
+    def onSliderChanged(self, new_value: float):
         """Default on_changed callback."""
         self.slider_callback(self.label, new_value)
 
-    def set_slider_value(self, new_value: float):
+    def setSliderValue(self, new_value: float):
         """Sets the value of the slider."""
         try:
             self.slider.set_val(new_value)
         except AttributeError as e:
             print('putain de merde', e)
 
-    def on_toggle_changed(self, new_value: bool):
+    def onToggleChanged(self, new_value: bool):
         """Default on_changer callback."""
         self.toggle_callback(self.label, new_value)
 
@@ -43,9 +43,9 @@ class ValueSlider:
         """Sets the value of the toggle."""
         self.active = new_value
         self._update_toggle()
-        self.on_toggle_changed(self.active)
+        self.onToggleChanged(self.active)
 
-    def get_toggle(self):
+    def getToggle(self):
         """Gets the current toggle value."""
         return self.active
 
@@ -53,7 +53,7 @@ class ValueSlider:
         """Activates or deactivates the slider, sending the appropriate callback."""
         self.active = not self.active
         self._update_toggle()
-        self.on_toggle_changed(self.active)
+        self.onToggleChanged(self.active)
 
-    def _update_toggle(self):
+    def _updateToggle(self):
         self.button.label.set_text('On' if self.active else 'Off')

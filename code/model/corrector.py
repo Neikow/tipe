@@ -40,7 +40,7 @@ class Corrector:
 
         self.corrected_values = corrected_values or ['threshold', 'offset']
 
-        with open(path) as file:
+        with open(path, 'r', encoding='utf-8') as file:
             self.columns = [x.strip().lower()
                             for x in file.readlines()[title_line].split(',')]
 
@@ -60,9 +60,9 @@ class Corrector:
                 self.correction_index.append(self.columns.index(col))
 
         if needs_update:
-            self.write_to_file()
+            self.writeToFile()
 
-    def write_to_file(self):
+    def writeToFile(self):
         """Writes current experiment settings to file."""
         # pylint: disable = unsubscriptable-object
         file_buffer: list[list[Union[str, float]]] = []
@@ -80,11 +80,11 @@ class Corrector:
 
             file_buffer.append(row_buffer)
 
-        with open(self.file, 'w', newline='') as file:
+        with open(self.file, 'w', newline='', encoding='utf-8') as file:
             file.writelines('\n'.join([', '.join([str(value) for value in row_buffer]) for row_buffer in file_buffer]))
 
     # pylint: disable = unsubscriptable-object
-    def format_expression(self, expression: Expression, data: ExperienceData):
+    def formatExpression(self, expression: Expression, data: ExperienceData):
         """Returns a formatted string of an expression evaluation."""
         res = expression(data[self.ids[self.curr_index]])
         return f'Expression: {res:.3e}'
@@ -101,7 +101,7 @@ class Corrector:
         graph_initialized: float = False
         curve_initialized = False
 
-        data: Data = Helper.safe_dict_copy(self.data)
+        data: Data = Helper.safeDictCopy(self.data)
 
         fig = plt.figure(figsize=(10, 8))
 
@@ -117,17 +117,17 @@ class Corrector:
         # graph_y_min, graph_y_max = Helper.get_global_scope_min_max(data, 'y')
         # graph_x_min, graph_x_max = Helper.get_global_scope_min_max(data, 'x')
 
-        def handle_slider_update(key: str, value: float):
+        def handleSliderUpdate(key: str, value: float):
             """Handles modifications on sliders."""
             curr = self.ids[self.curr_index]
             data[curr][key] = value
             # print(data[curr][key], self.data[curr][key])
-            Helper.compute_expressions('data', self.expressions, data, element_id=curr)
+            Helper.computeExpressions('data', self.expressions, data, element_id=curr)
 
             updateGraph(curr)
             updateCurve(curr)
 
-        def handle_toggle(key: str, value: bool):
+        def handleToggle(key: str, value: bool):
             """Handles changes to the slider toggles."""
             curr = self.ids[self.curr_index]
             ...
@@ -167,7 +167,7 @@ class Corrector:
             """Redraws the leftmost graph."""
             nonlocal graph_initialized
             nonlocal graph_line, thtop, thbot, graph_title, graph_legend
-            scope: Scope = Helper.safe_dict_copy(data[graph_id]['graph'])
+            scope: Scope = Helper.safeDictCopy(data[graph_id]['graph'])
 
             # graph_axes = list(graph.keys())
 
@@ -175,17 +175,17 @@ class Corrector:
                 #     graph_preview.set_xlim([graph_x_min, graph_x_max])
                 #     graph_preview.set_ylim([graph_y_min - 3, graph_y_max + 3])
 
-                scope.trace_graph(graph_preview, should_plot_original=True, should_plot_scaled=True, on_same_graph=False)
+                scope.traceGraph(graph_preview, should_plot_original=True, should_plot_scaled=True, on_same_graph=False)
 
-                graph_title = scope.get_axis('wrapper').text(
+                graph_title = scope.getAxis('wrapper').text(
                     0.29, 0.9, '', fontsize=14, transform=plt.gcf().transFigure)
                 if 'threshold' in self.corrected_values:
-                    thtop = scope.get_axis('og').axhline(color='red', linestyle='-')
-                    thbot = scope.get_axis('og').axhline(color='red', linestyle='-')
+                    thtop = scope.getAxis('og').axhline(color='red', linestyle='-')
+                    thbot = scope.getAxis('og').axhline(color='red', linestyle='-')
 
                 if expression:
-                    graph_legend = scope.get_axis('wrapper').text(0.310, 0.035,
-                                                                  self.format_expression(expression, data),
+                    graph_legend = scope.getAxis('wrapper').text(0.310, 0.035,
+                                                                  self.formatExpression(expression, data),
                                                                   ha='center',
                                                                   va='center',
                                                                   transform=plt.gcf().transFigure)
@@ -197,11 +197,11 @@ class Corrector:
                 thtop.set_ydata(-offset + data[graph_id]['threshold'])
                 thbot.set_ydata(-offset - data[graph_id]['threshold'])
 
-            scope.update_graph(lambda x, threshold, offset: (x + offset if abs(x + offset) >
+            scope.updateGraph(lambda x, threshold, offset: (x + offset if abs(x + offset) >
                                                              threshold else 0), [data[graph_id]['threshold'], data[graph_id]['offset']])
 
             if graph_legend:
-                graph_legend.set_text(self.format_expression(expression, data))
+                graph_legend.set_text(self.formatExpression(expression, data))
 
         curve_line = None
         annotations = {}
@@ -226,9 +226,9 @@ class Corrector:
                 #         # annotations[id] = curve_preview.annotate(id, (curve_plot['x'][j], curve_plot['y'][j]), textcoords='offset points', xytext=(0, 5), ha='center')
                 #         annotations[id] = curve_preview.annotate(
                 #             id, (curve_plot['x'][j], curve_plot['y'][j]))
-                curve.trace_curve(curve_preview, data)
+                curve.traceCurve(curve_preview, data)
 
-                curve.get_axis()
+                curve.getAxis()
 
                 curve_initialized = True
 
@@ -249,7 +249,6 @@ class Corrector:
         def updatePage(increment: int):
             """Redraws everything on screen and handles page change."""
             curr, _ = updateCurrent(increment)
-
             
             updateGraph(curr)
             updateCurve(curr)
@@ -265,8 +264,8 @@ class Corrector:
 
         def apply():
             """Saves the changes and updates the file."""
-            self.data = Helper.safe_dict_copy(data)
-            self.write_to_file()
+            self.data = Helper.safeDictCopy(data)
+            self.writeToFile()
 
         axnext = plt.axes([0.445, 0.01, 0.05, 0.050])
         axprev = plt.axes([0.125, 0.01, 0.05, 0.050])

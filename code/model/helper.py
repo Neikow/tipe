@@ -15,10 +15,10 @@ class Helper:
     """Helper class handling useful calculations and functions."""
     @staticmethod
     # pylint: disable=E1136,R0914
-    def file_to_data(path: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_',
+    def fileToData(path: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_',
                      measurements_title_line: int = 1) -> ExperienceData:
         """Convers a measurments data file to python dictionary."""
-        with open(path) as file:
+        with open(path, 'r', encoding='utf-8') as file:
             global_data = ExperienceData()
             lines = file.readlines()
             entries = [x.strip().lower() for x in lines[data_title_line].split(',')]
@@ -47,7 +47,7 @@ class Helper:
                     local_data[entry] = float(values[j])
 
                     if id_index is not None:
-                        scopes = Helper.measurements_to_scope_data(
+                        scopes = Helper.measurementsToScopeData(
                             f"{path.strip().removesuffix('.csv')}/{measurements_file_prefix}{_id}.csv", measurements_title_line)
 
                         if len(scopes) > 1:
@@ -60,10 +60,10 @@ class Helper:
         return global_data
 
     @staticmethod
-    def measurements_to_scope_data(path: str, measurements_title_line: int = 1) -> list[Scope]:
+    def measurementsToScopeData(path: str, measurements_title_line: int = 1) -> list[Scope]:
         """Converts measurments from a Scope to readable dict."""
 
-        with open(path) as file:
+        with open(path, 'r', encoding='utf-8') as file:
             lines = file.readlines()
             entries = [x.strip().lower() for x in lines[measurements_title_line].split(',')]
             columns_count = len(entries)
@@ -86,7 +86,7 @@ class Helper:
         ) for i in range(1, columns_count)]
 
     @staticmethod
-    def compute_integral(x_data: list[float],
+    def computeIntegral(x_data: list[float],
                          y_data: list[float],
                          threshold: float = 0.0,
                          scaling_function: Callable[...,
@@ -116,7 +116,7 @@ class Helper:
 
     @staticmethod
     # pylint: disable=E1136
-    def compute_expressions(expr_type: Literal['data', 'uncert'], expressions: ExpressionsList,
+    def computeExpressions(expr_type: Literal['data', 'uncert'], expressions: ExpressionsList,
                             data: Data, uncert: Uncertainty = None, element_id: str = None):
         """Calculates the value (or uncertainty) of a dataset entry using data from the dataset and a given expression."""
 
@@ -139,7 +139,7 @@ class Helper:
                     _data[_id][expr_key] = expression(data[_id], uncert[_id] if (expr_type == 'uncert') else None)
 
     @staticmethod
-    def default_uncertainties(data: Data, uncert: Uncertainty):
+    def defaultUncertainties(data: Data, uncert: Uncertainty):
         """Returns default uncertainties for certain dataset entries."""
 
         default_uncertainties = [
@@ -154,25 +154,25 @@ class Helper:
 
     @staticmethod
     # pylint: disable=E1136
-    def get_global_scope_min_max(data: dict[str, dict[str, Union[float, Scope]]], axis: Literal['x', 'y'] = 'y'):
+    def getGlobalScopeMinMax(data: dict[str, dict[str, Union[float, Scope]]], axis: Literal['x', 'y'] = 'y'):
         """Computes graph's extremum values for X and Y axes on the whole dataset."""
         g_min: float = None
         g_max: float = None
 
-        def local_min_max(arr: list[float]):
-            _min: float = arr[0]
-            _max: float = arr[0]
+        def localMinMax(arr: list[float]):
+            l_min: float = arr[0]
+            l_max: float = arr[0]
 
             for _x in arr:
-                if _x < _min:
-                    _min = _x
-                if _x > _max:
-                    _max = _x
+                if _x < l_min:
+                    l_min = _x
+                if _x > l_max:
+                    l_max = _x
 
-            return (_min, _max)
+            return (l_min, l_max)
 
         for _data in data.values():
-            local_min, local_max = local_min_max(_data['graph'].x_data if axis == 'x' else _data['graph'].y_data)
+            local_min, local_max = localMinMax(_data['graph'].x_data if axis == 'x' else _data['graph'].y_data)
             if min is None or local_min < g_min:
                 g_min = local_min
             if max is None or local_max > g_max:
@@ -180,24 +180,24 @@ class Helper:
         return (min, max)
 
     @staticmethod
-    def safe_list_copy(obj: any) -> list:
+    def safeListCopy(obj: any) -> list:
         """Returns a shallow copy of a python `list`."""
         copy: list = []
         for value in obj:
             if isinstance(value, dict):
-                copy.append(Helper.safe_dict_copy(obj))
+                copy.append(Helper.safeDictCopy(obj))
             elif isinstance(value, list):
-                copy.append(Helper.safe_list_copy(obj))
+                copy.append(Helper.safeListCopy(obj))
             else:
                 copy.append(value)
         return copy
 
     @staticmethod
-    def safe_dict_copy(obj: any) -> dict:
+    def safeDictCopy(obj: any) -> dict:
         """Returns a shallow copy of a python `dict`."""
         if isinstance(obj, ExperienceData):
             copy: ExperienceData = ExperienceData()
-            copy.set_data_keys(obj.get_data_keys())
+            copy.set_data_keys(obj.getDataKeys())
         else:
             copy: dict = {}
         if not hasattr(obj, 'items'):
@@ -205,9 +205,9 @@ class Helper:
 
         for key, value in obj.items():
             if isinstance(value, dict):
-                copy[key] = Helper.safe_dict_copy(value)
+                copy[key] = Helper.safeDictCopy(value)
             elif isinstance(value, list):
-                copy[key] = Helper.safe_list_copy(value)
+                copy[key] = Helper.safeListCopy(value)
             else:
                 copy[key] = value
         return copy
@@ -225,7 +225,7 @@ class Helper:
         plt.show()
 
     @staticmethod
-    def initialize_graph(plots_count: int):
+    def initializeGraph(plots_count: int):
         """Computes the graph matrix size."""
         columns = ceil(sqrt(plots_count))
         rows = ceil(plots_count / columns)
@@ -234,7 +234,7 @@ class Helper:
 
     @staticmethod
     # pylint: disable=E1136
-    def compute_angle(angle: float, src: Literal['deg', 'rad'], dst: Literal['deg', 'rad'], ):
+    def computeAngle(angle: float, src: Literal['deg', 'rad'], dst: Literal['deg', 'rad'], ):
         if not (src in ('deg', 'rad') and dst in ('deg', 'rad')):
             raise Exception('Unknown value for source or destination unit.')
         norm: float
@@ -256,9 +256,9 @@ class Helper:
         return norm * destinations[dst]
 
     @staticmethod
-    def impedence_from_graph(path: str, R: float, f_min: float = 30000, f_max: float = 95000, invert_data: bool = False):
+    def impedenceFromGraph(path: str, R: float, f_min: float = 30000, f_max: float = 95000, invert_data: bool = False):
         # z = u / i
-        scopes = Helper.measurements_to_scope_data(path)
+        scopes = Helper.measurementsToScopeData(path)
 
         if len(scopes) != 2:
             raise Exception('Two scopes measurements are required to compute impedence.')

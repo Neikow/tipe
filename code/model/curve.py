@@ -101,13 +101,13 @@ class Curve:
                 'x_label': self.x_label,
                 'y_label': self.y_label}
 
-    def trace_curve(self, spec: SubplotSpec, data: Data, uncert: Uncertainty = None):
+    def traceCurve(self, spec: SubplotSpec, data: Data, uncert: Uncertainty = None):
         self.ax = plt.subplot(spec)
         self.ax.scatter(self.x_data, self.y_data)
 
 
-    def update_curve(self, data: Data, uncert: Uncertainty = None):
+    def updateCurve(self, data: Data, uncert: Uncertainty = None):
         ...
 
-    def get_axis(self):
+    def getAxis(self):
         return self.ax
