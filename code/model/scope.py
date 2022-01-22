@@ -1,4 +1,5 @@
-from typing import Literal, Union
+from numpy import inf
+from typing import Callable, Literal, Union
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -6,6 +7,8 @@ from matplotlib.gridspec import SubplotSpec
 import numpy as np
 from model.types import ScaleFunction
 from scipy.interpolate import make_interp_spline
+from scipy.optimize import curve_fit
+from scipy.signal import savgol_filter
 
 ScopeData = dict[str, list[float]]
 
@@ -146,17 +149,42 @@ class Scope:
         """Returns a copy of the scope. Without the plot data."""
         return Scope(dict([(self.x_label, self.x_data), (self.y_label, self.y_data)]))
 
-    def plot(self):
+    def plot(self, show_original: bool = True, interpolate: bool = False, fitting_function: Callable[..., float] = None, bounds: tuple[float, float] = (-inf, inf), x_scale: str = None, y_scale: str = None):
         """Plots the scope in a new window."""
-        plt.plot(self.x_data, self.y_data)
-
-        spl = make_interp_spline(self.x_data, self.y_data, k=3)
+        if not show_original and not interpolate:
+            raise Exception('Nothing to show.')
+        
         xnew = np.linspace(min(self.x_data), max(self.x_data), 300)
-        Y = spl(xnew)
 
-        plt.plot(xnew, Y)
+
+        if show_original:
+            plt.plot(self.x_data, self.y_data)
+
+        if interpolate:
+            spl = make_interp_spline(self.x_data, self.y_data, k=3)
+            Y = spl(xnew)
+            plt.plot(xnew, Y)
+
+            Y = savgol_filter(Y, 29, 13)
+            plt.plot(xnew, Y)
+
+
+        if fitting_function:
+            popt, pcov = curve_fit(fitting_function, self.x_data, self.y_data, bounds=bounds)
+            plt.plot(self.x_data, fitting_function(self.x_data, *popt), 'r-')
+
+
+        if x_scale:
+            print(x_scale)
+            
+            plt.xscale(x_scale)
+
+        if y_scale:
+            plt.yscale(y_scale)
+
         plt.xlabel(self.x_label)
         plt.ylabel(self.y_label)
+
         plt.show()
 
 

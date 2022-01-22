@@ -42,7 +42,7 @@ class Curve:
         self.x_unc = []
         self.y_unc = []
 
-    def populate(self, data: Data, uncert: Uncertainty = None):
+    def populate(self, data: Data, uncert: Uncertainty = None, ignore: list[str] = None):
         """Populates axes with `data` and `uncert`."""
 
         for var in [self.x_label, self.y_label]:
@@ -52,6 +52,9 @@ class Curve:
                 assert False, f'Error while plotting the graph, unknown variable: "{var}"'
 
         for i, key in enumerate(data.keys()):
+            if ignore and key in ignore:
+                continue
+
             self.labels.append(key)
             self.ids[key] = i
 
@@ -73,7 +76,7 @@ class Curve:
 
     def update(self, key: str, data: dict[str, float], uncert: dict[str, float] = None):
         """Updates the `data` and `uncert` of an already populated graph."""
-        if key not in self.ids.keys():
+        if key not in self.ids:
             assert False, 'Unknown key.'
 
         index = self.ids[key]
@@ -104,7 +107,6 @@ class Curve:
     def traceCurve(self, spec: SubplotSpec, data: Data, uncert: Uncertainty = None):
         self.ax = plt.subplot(spec)
         self.ax.scatter(self.x_data, self.y_data)
-
 
     def updateCurve(self, data: Data, uncert: Uncertainty = None):
         ...

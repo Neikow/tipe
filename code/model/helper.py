@@ -1,7 +1,8 @@
 import inspect
-from math import ceil, sqrt
+from math import ceil, sqrt, tan
 from typing import Callable, Literal, Union
 from matplotlib import pyplot as plt
+from matplotlib.gridspec import GridSpec
 import numpy as np
 from scipy.integrate import simpson
 from model.experience_data import ExperienceData
@@ -16,7 +17,7 @@ class Helper:
     @staticmethod
     # pylint: disable=E1136,R0914
     def fileToData(path: str, data_title_line: int = 0, measurements_file_prefix: str = 'scope_',
-                     measurements_title_line: int = 1) -> ExperienceData:
+                   measurements_title_line: int = 1) -> ExperienceData:
         """Convers a measurments data file to python dictionary."""
         with open(path, 'r', encoding='utf-8') as file:
             global_data = ExperienceData()
@@ -51,7 +52,7 @@ class Helper:
                             f"{path.strip().removesuffix('.csv')}/{measurements_file_prefix}{_id}.csv", measurements_title_line)
 
                         if len(scopes) > 1:
-                            for k in range(len(scopes)):
+                            for k, _ in enumerate(scopes):
                                 local_data[f'graph{k}'] = scopes[k]
                         else:
                             local_data['graph'] = scopes[0]
@@ -87,11 +88,11 @@ class Helper:
 
     @staticmethod
     def computeIntegral(x_data: list[float],
-                         y_data: list[float],
-                         threshold: float = 0.0,
-                         scaling_function: Callable[...,
-                                                    float] = lambda y: y,
-                         scaling_aguments: list[float] = None):
+                        y_data: list[float],
+                        threshold: float = 0.0,
+                        scaling_function: Callable[...,
+                                                   float] = lambda y: y,
+                        scaling_aguments: list[float] = None):
         """Calculates the integral for a given graph.
 
         `Y` axis values can be scaled using the `scaling_function` attribute.
@@ -117,7 +118,7 @@ class Helper:
     @staticmethod
     # pylint: disable=E1136
     def computeExpressions(expr_type: Literal['data', 'uncert'], expressions: ExpressionsList,
-                            data: Data, uncert: Uncertainty = None, element_id: str = None):
+                           data: Data, uncert: Uncertainty = None, element_id: str = None):
         """Calculates the value (or uncertainty) of a dataset entry using data from the dataset and a given expression."""
 
         assert (expr_type == 'uncert' and uncert) or not uncert, 'Uncertainties are required.'
@@ -197,7 +198,6 @@ class Helper:
         """Returns a shallow copy of a python `dict`."""
         if isinstance(obj, ExperienceData):
             copy: ExperienceData = ExperienceData()
-            copy.set_data_keys(obj.getDataKeys())
         else:
             copy: dict = {}
         if not hasattr(obj, 'items'):
@@ -230,7 +230,9 @@ class Helper:
         columns = ceil(sqrt(plots_count))
         rows = ceil(plots_count / columns)
         is_graph_2d = rows > 1
-        return plt.subplots(rows, columns)[1], is_graph_2d, columns, rows
+        return GridSpec(rows, columns), is_graph_2d, columns, rows
+
+        # return plt.subplots(rows, columns, constrained_layout=True)[1], is_graph_2d, columns, rows
 
     @staticmethod
     # pylint: disable=E1136
@@ -278,3 +280,23 @@ class Helper:
             Z.append(abs(E[i] - U[i]) / abs(U[i]) * R)
 
         return Scope({'f': np.array(F), 'Z': np.array(Z)})
+
+    @staticmethod
+    def coefficient(coeff: str, fm: float, fM: float):
+        if coeff == 'k31':
+            fMOverfm = fM / fm
+            piOverTwo = Constants.pi / 2
+            T = piOverTwo * fMOverfm * tan(piOverTwo * (fMOverfm - 1))
+            return sqrt(T / (1 + T))
+        else:
+            raise Exception('Unknow coefficient name.')
+
+    @staticmethod
+    def expect(result: float, expected: float, unit: str):
+        def addUnit(s: str):
+            return s + (f' {unit}' if unit else '')
+
+        print(addUnit(f'Expected: {expected}'))
+        print(addUnit(f'Got: {result}'))
+        err = round((abs(expected - result) / expected if expected != 0 else abs(expected - result) / result if result != 0 else -1) * 1000) / 10
+        print(f'Relative error: {err}%')

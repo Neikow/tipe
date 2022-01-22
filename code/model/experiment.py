@@ -1,3 +1,4 @@
+from model.scope import Scope
 from model.experience_data import ExperienceData
 from model.expression import ExpressionsList
 from model.types import Uncertainty
@@ -34,51 +35,49 @@ class Experiment:
         Helper.defaultUncertainties(self.data, self.uncert)
         Helper.computeExpressions('uncert', self.expr_uncert, self.data, self.uncert)
 
-    def traceMeasurementGraphs(self, custom_x_axis: str = None, custom_y_axis: str = None, ids: list[str] = None):
+    def traceMeasurementGraphs(self, ids: list[str] = None):
         """Traces Scope graphs of the current dataset."""
         if 'graph' not in self.data.getDataKeys():
             assert False, 'The current exprimentdoesn\'t have associated graph.'
 
         count = len(self.data) if ids is None else len(ids)
-        axs, is_fig_2d, col_count = Helper.initializeGraph(count)[:3]
-
+        gris_spec, is_fig_2d, col_count = Helper.initializeGraph(count)[:3]
         curves_ids = ids or list(self.data.keys())
         scopes_count = len(curves_ids)
 
         for i in range(count):
-            axis = axs[i // col_count][i % col_count] if is_fig_2d else axs[i]
+            spec = gris_spec[i // col_count, i % col_count] if is_fig_2d else gris_spec[i]
 
             if i < scopes_count:
                 graph = self.data[curves_ids[i]]['graph']
-                if isinstance(graph, dict):
-                    x_label, y_label = graph.keys()
-                    axis.plot(graph[custom_x_axis or x_label],
-                              graph[custom_y_axis or y_label])
-                    axis.set_title(curves_ids[i])
-            else:
-                axis.axis('off')
+                if isinstance(graph, Scope):
+                    graph.traceGraph(spec, should_plot_scaled=False)
+                    graph.ax_og.set_title(curves_ids[i])
+
+        gris_spec.tight_layout(plt.gcf(), h_pad=-1.6, w_pad=-1)
 
         plt.show()
 
-    def trace(self, curves: list[Curve]):
+    def trace(self, curves: list[Curve], ignore: list[str] = None):
         """Traces `Curves` using the current dataset."""
         curves_count = len(curves)
-        axs, is_fig_2d, col_count = Helper.initializeGraph(curves_count)[:3]
+        specs, is_fig_2d, col_count = Helper.initializeGraph(curves_count)[:3]
 
         for curve in curves:
-            curve.populate(self.data, self.uncert)
+            curve.populate(self.data, self.uncert, ignore)
 
         data_len = len(self.data.keys())
 
         for i in range(curves_count):
-            axis = axs[i // col_count][i % col_count] if is_fig_2d else axs[i] if curves_count > 1 else axs
+            spec = specs[i // col_count, i % col_count] if is_fig_2d else specs[i]
 
             if i < curves_count:
+                ax = plt.subplot(spec)
                 data = curves[i].plot()
-                axis.scatter(data['x'], data['y'])
+                ax.scatter(data['x'], data['y'])
 
-                axis.set_xlabel(data['x_label'])
-                axis.set_ylabel(data['y_label'])
+                ax.set_xlabel(data['x_label'])
+                ax.set_ylabel(data['y_label'])
 
                 valid_ux = len(data['ux']) == data_len
                 valid_uy = len(data['uy']) == data_len
@@ -86,17 +85,17 @@ class Experiment:
                 for j, _id in enumerate(self.data.keys()):
                     x_pos: float = data['x'][j]
                     y_pos: float = data['y'][j]
-                    axis.annotate(_id, (x_pos, y_pos),
+                    ax.annotate(_id, (x_pos, y_pos),
                                   textcoords='offset points', xytext=(0, 5), ha='center')
                     if data['unc'] and (valid_ux or valid_uy):
-                        axis.errorbar(
+                        ax.errorbar(
                             data['x'][j],
                             data['y'][j],
                             data['uy'][j] if valid_uy else 0,
                             data['ux'][j] if valid_ux else 0,
                             ecolor='firebrick')
             else:
-                axis.axis('off')
+                ax.axis('off')
 
         plt.show()
 

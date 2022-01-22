@@ -8,8 +8,6 @@ DataEntry = dict[str, Union[float, Scope]]
 
 class ExperienceData (dict[str, DataEntry]):
     """Custom `dict` class holding experience data."""
-    _data_keys: list[str]
-
     def __init__(self, *args, **kwargs):
         self.update(*args, **kwargs)
 
@@ -21,21 +19,11 @@ class ExperienceData (dict[str, DataEntry]):
         if not isinstance(val, dict):
             raise Exception('The item must be a `dict`.')
 
-        if not hasattr(self, '_data_keys'):
-            self._data_keys = list(val.keys())
-        else:
-            for key in val.keys():
-                if key not in self._data_keys:
-                    self._data_keys.append(key)
-
         return super().__setitem__(__key, val)
 
     def getDataKeys(self) -> list[str]:
         """Returs the keys of the"""
-        if not self._data_keys:
-            self._data_keys = []
-
-        return self._data_keys
+        return list(self[list(self.keys())[0]].keys())
 
     def __repr__(self):
         dictrepr = dict.__repr__(self)
@@ -45,7 +33,3 @@ class ExperienceData (dict[str, DataEntry]):
         """Merges `self` with another dict"""
         for key, val in dict(*args, **kwargs).items():
             self[key] = val
-
-    def set_data_keys(self, new_keys: list[str]):
-        """Overrides the current data keys."""
-        self._data_keys = new_keys.copy()
