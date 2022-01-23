@@ -1,5 +1,6 @@
 import os
 from math import ceil, sqrt, inf, tan
+from tkinter import E
 import numpy as np
 from typing import Callable, Literal
 from matplotlib import pyplot as plt
@@ -35,7 +36,7 @@ class Constants:
 class Uncertainties:
     """Wrapper class for uncertainties calculation.
 
-    Wikipedia: https://fr.wikipedia.org/wiki/Propagation_des_incertitudes"""
+    https://fr.wikipedia.org/wiki/Propagation_des_incertitudes"""
 
     @staticmethod
     def sum(dB: float, dC: float) -> float:
@@ -61,7 +62,7 @@ class Uncertainties:
 
 ScaleFunction = Callable[..., float]
 ScopeData = dict[str, list[float]]
-
+SaveArgs = list[tuple[str, str]] | str
 
 class Scope:
     """A wrapper class for holding scope data."""
@@ -835,15 +836,19 @@ class Helper:
         return s
 
     @staticmethod
-    def show(experience_name: str = None, args: list[tuple[str, str]] | str = None):
+    def save(experience_name: str = None, args: SaveArgs = None, clear: bool = True):
+        fname = Helper.formatFileName(experience_name, args)
+        plt.savefig(f'images/graphs/{fname}.png')
+        plt.savefig(f'images/graphs/{fname}.svg')
+        if clear:
+            plt.clf()
+
+    @staticmethod
+    def show(experience_name: str = None, args: SaveArgs = None):
         '''Custom `pyplot` show command that also saves the plot.'''
         if experience_name:
-            fname = Helper.formatFileName(experience_name, args)
-            plt.savefig(f'images/graphs/{fname}.png', dpi=500)
-            plt.savefig(f'images/graphs/{fname}.svg', dpi=500)
-
+            Helper.save(experience_name, args, False)
         plt.show()
-
 
 class Experiment:
     """An experiment wrapper.
@@ -871,10 +876,10 @@ class Experiment:
         Helper.defaultUncertainties(self.data, self.uncert)
         Helper.computeExpressions('uncert', self.expr_uncert, self.data, self.uncert)
 
-    def traceMeasurementGraphs(self, ids: list[str] = None):
+    def traceMeasurementGraphs(self, ids: list[str] = None, save_only: bool = False):
         """Traces Scope graphs of the current dataset."""
         if 'graph' not in self.data.getDataKeys():
-            assert False, 'The current exprimentdoesn\'t have associated graph.'
+            raise Exception('The current expriment doesn\'t have associated graph.')
 
         count = len(self.data) if ids is None else len(ids)
         gris_spec, is_fig_2d, col_count = Helper.initializeGraph(count)[:3]
@@ -892,11 +897,17 @@ class Experiment:
 
         gris_spec.tight_layout(plt.gcf(), h_pad=0.3, w_pad=0.2)
 
-        Helper.show(Helper.fileNameFromPath(self.file), 'measurements')
+
+        fname = Helper.fileNameFromPath(self.file)
+        args = 'measurements'
+        if save_only:
+            Helper.save(fname, args)
+        else:
+            Helper.show(fname, args)
 
         # plt.show()
 
-    def trace(self, curves: list[Curve], ignore: list[str] = None):
+    def trace(self, curves: list[Curve], ignore: list[str] = None, save_only: bool = False):
         """Traces `Curves` using the current dataset."""
         curves_count = len(curves)
         specs, is_fig_2d, col_count = Helper.initializeGraph(curves_count)[:3]
@@ -935,7 +946,12 @@ class Experiment:
             else:
                 ax.axis('off')
 
-        Helper.show(Helper.fileNameFromPath(self.file), [(curve.x_label, curve.y_label) for curve in curves])
+        fname = Helper.fileNameFromPath(self.file)
+        args = [(curve.x_label, curve.y_label) for curve in curves]
+        if save_only:
+            Helper.save(fname, args)
+        else:
+            Helper.show(fname, args)
 
         # plt.show()
 

@@ -69,7 +69,7 @@ class Calibrations:
             3: [10e3, 1e6],
             4: [10e3, 500e3]
         }
-        S = Helper.impedenceFromGraph(f'measures/calibrations/scope_{scope_id}.csv', R, *freq_table[scope_id])
+        S = Helper.impedenceFromGraph(f'measures/calibrations/calib_{scope_id}.csv', R, *freq_table[scope_id])
 
         # scope_1 coefficients
         print(Helper.coefficient('k31', 1.33e5, 1.47e5))
@@ -123,6 +123,7 @@ class Experiments:
         })
 
         if default:
+            E.traceMeasurementGraphs()
             E.trace([Curve('h', 'Ee'), Curve('h', 'Ee_Ep')])
 
         return E
@@ -142,6 +143,7 @@ class Experiments:
         })
 
         if default:
+            E.traceMeasurementGraphs()
             E.trace([Curve('r', 'Ee'), Curve('r', 'Ee_Ep')])
 
         return E
@@ -163,6 +165,9 @@ if __name__ == '__main__':
     # Calibrations.Calibration1()
     # Calibrations.Calibration2()
     Calibrations.Calibration3(1)
+    Calibrations.Calibration3(2)
+    Calibrations.Calibration3(3)
+    Calibrations.Calibration3(4)
 
     # ================================
     #           Experiments
