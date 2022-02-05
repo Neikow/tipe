@@ -1,3 +1,5 @@
+from matplotlib.pyplot import xlabel
+import numpy as np
 from newton import *
 
 class Tests:
@@ -48,7 +50,10 @@ class Calibrations:
             'phi': Expression(lambda phi_deg: Helper.computeAngle(phi_deg, 'deg', 'rad')),
         }, {})
 
-        E.trace([Curve('f', 'Z')])
+        curve = Curve('f', 'Z')
+        E.trace([curve])
+
+        print(curve.x_data, curve.y_data)
 
     @staticmethod
     def Calibration3(scope_id: int):
@@ -71,6 +76,8 @@ class Calibrations:
         }
         S = Helper.impedenceFromGraph(f'measures/calibrations/calib_{scope_id}.csv', R, *freq_table[scope_id])
 
+        # print(list(S.y_data), list(S.x_data))
+
         # scope_1 coefficients
         print(Helper.coefficient('k31', 1.33e5, 1.47e5))
         print(Helper.coefficient('k31', 1.96e5, 2.10e5))
@@ -80,7 +87,10 @@ class Calibrations:
         print(Helper.coefficient('k31', 1.96e5, 2.13e5))
         print(Helper.coefficient('k31', 2.85e5, 3.10e5))
 
+        # plt.plot(S.x_data, 1 / S.y_data)
         S.plot(False, True)
+
+
 
 
 class Experiments:
@@ -148,6 +158,57 @@ class Experiments:
 
         return E
 
+    @staticmethod
+    def Experiment5(default: bool = True):
+        E = Experiment('measures/exp5.csv', {
+            'Ee': Expressions.Ee,
+            'Ep': Expressions.Ep,
+            'Ee_Ep': Expressions.Ee_Ep,
+        },
+            {
+            'Ee': Expressions.u_Ee,
+            'Ep': Expressions.u_Ep,
+            'Ee_Ep': Expressions.u_Ee_Ep,
+        })
+
+        if default:
+            # E.traceMeasurementGraphs()
+            h_Ee = Curve('h', 'Ee')
+            h_Ee.populate(E.data)
+            h_Ee_Ep = Curve('h', 'Ee_Ep')
+            h_Ee_Ep.populate(E.data)
+            # E.trace([h_Ee, h_Ee_Ep])
+
+            X1 = h_Ee_Ep.x_data
+            Y1 = h_Ee_Ep.y_data
+            X2 = h_Ee.x_data
+            Y2 = h_Ee.y_data
+
+            X1_label = h_Ee_Ep.x_label
+            Y1_label = h_Ee_Ep.y_label
+            X2_label = h_Ee.x_label
+            Y2_label = h_Ee.y_label
+
+            fig, axs = plt.subplots(2)
+
+            coef1 = np.polyfit(X1,Y1,1)
+            poly1d_fn1 = np.poly1d(coef1)
+            
+            axs[0].plot(X1,Y1, 'yo', X1, poly1d_fn1(Y1), '--k')
+            axs[0].set(ylabel=Y1_label, xlabel=X1_label)
+
+            coef2 = np.polyfit(X2,Y2,1)
+            poly1d_fn2 = np.poly1d(coef2)
+            
+            axs[1].plot(X2,Y2, 'yo', X2, poly1d_fn2(X2), '--k')
+            axs[1].set(ylabel=Y2_label, xlabel=X2_label)
+
+            plt.show()
+
+        E.trace([Curve('Ee', 'Ee_Ep'), Curve('Ep', 'Ee_Ep')])
+
+            
+
 
 if __name__ == '__main__':
     Helper.init()
@@ -164,10 +225,10 @@ if __name__ == '__main__':
 
     # Calibrations.Calibration1()
     # Calibrations.Calibration2()
-    Calibrations.Calibration3(1)
-    Calibrations.Calibration3(2)
-    Calibrations.Calibration3(3)
-    Calibrations.Calibration3(4)
+    # Calibrations.Calibration3(1)
+    # Calibrations.Calibration3(2)
+    # Calibrations.Calibration3(3)
+    # Calibrations.Calibration3(4)
 
     # ================================
     #           Experiments
@@ -177,3 +238,11 @@ if __name__ == '__main__':
     # Experiments.Experiment2()
     # Experiments.Experiment3()
     # Experiments.Experiment4()
+    # Experiments.Experiment5(False)
+
+    D = Helper.fileToData('measures/standalone.csv')
+    Helper.computeExpressions('data', {
+        'Ee': Expressions.Ee, 'Ep': Expressions.Ep, 'Ee_Ep': Expressions.Ee_Ep
+    }, D)
+    
+    print(D)

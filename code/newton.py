@@ -116,7 +116,6 @@ class Scope:
         assert len(new_data) == len(self.x_data)
         self.y_data = new_data
 
-    # pylint: disable = unsubscriptable-object, inconsistent-return-statements
     def getAxis(self, axis_type: Literal['wrapper', 'og', 'sc']) -> plt.Axes:
         """Returns the given axis if it exists."""
         if axis_type == 'wrapper':
@@ -130,7 +129,6 @@ class Scope:
             assert self.plot_scaled, 'Scaled graph is not drawn.'
             return self.ax_sc
 
-    # pylint: disable = too-many-arguments
     def traceGraph(self, spec: SubplotSpec,
                    scaling_function: ScaleFunction = None,
                    scaling_arguments: list[float] = None,
@@ -163,7 +161,6 @@ class Scope:
                 curr_fig = plt.gcf()
                 self.ax_og = curr_fig.add_subplot(inner[0, 0])
 
-                # pylint: disable = expression-not-assigned
                 [t.set_color('white') for t in self.ax_wrapper.yaxis.get_ticklabels() + self.ax_wrapper.xaxis.get_ticklabels()]
                 [self.ax_wrapper.tick_params(axis=_ax, colors='white') for _ax in ['x', 'y']]
                 [spine.set_color('white') for spine in self.ax_wrapper.spines.values()]
