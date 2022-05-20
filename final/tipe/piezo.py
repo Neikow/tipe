@@ -42,6 +42,10 @@ ExperienceData = dict[str, dict[str, float | ScopeData]]
 
 
 class Value:
+    '''Objet représentant sa valeur et une incertitude associée.
+
+       Supporte la propagation d'incertitudes.'''
+
     def __init__(self, value: float, uncert: float = None):
         assert isinstance(value, (float, int)), f'value must be float, found "{type(value)}"'
         assert uncert is None or isinstance(uncert, (float, int)), f'uncert must be float, found "{type(uncert)}"'
@@ -49,6 +53,11 @@ class Value:
         if uncert:
             assert uncert >= 0, 'uncertainty must be positive'
         self.uncert = uncert
+
+    def tuple(self):
+        '''Renvoie un `tuple` associé à l'objet.'''
+        return (self.value, self.uncert)
+
 
     def __str__(self):
         if self.uncert is None or self.uncert <= 0:
@@ -62,8 +71,6 @@ class Value:
     def __repr__(self):
         return self.__str__()
 
-    def tuple(self):
-        return (self.value, self.uncert)
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
@@ -196,7 +203,7 @@ class Expression:
         self.defaults = defaults or {}
         self.arguments = signature(f).parameters
 
-    def __call__(self, data: dict[str, Value]) -> Value:
+    def apply(self, data: dict[str, Value]) -> Value:
         args = []
         value = None
         for arg in self.arguments:
@@ -204,9 +211,9 @@ class Expression:
                 value = data.get(arg)
             else:
                 value = self.defaults.get(arg)
-
+            
             if value is None:
-                assert False, f'Unknown key {arg}. Available keys: {list(data.keys())}'
+                assert False, f'Unknown key {arg}. Available keys: {list(data.keys())}.'
 
             args.append(value)
 
@@ -219,19 +226,19 @@ class Expression:
 
 
 class Expressions:
-    '''Expressions'''
+    '''Expressions utiles pour les calculs de variables souvent réutilisées dans le projet.'''
 
     Ee = Expression(lambda scope, r: Helper.computeIntegral(scope.x_data, scope.y_data, scaling=lambda x: (x ** 2) / r))
-    '''Electric Energy'''
+    '''Energie électrique aux bornes de la résistance `r`.'''
 
     Ep = Expression(lambda h: CONSTANTS.g * CONSTANTS.M * h)
-    '''Potential Energy'''
+    '''Energie potentielle de la bille à une hauteur `h`.'''
 
     T = Expression(lambda h: sqrt(2 * h / CONSTANTS.g))
-    '''Falling time'''
+    '''Temps de chute depuis une hauteur `h`.'''
 
     EeOverEp = Expression(lambda Ee, Ep: Ee / Ep)
-    '''Piezoelectric constant: k^2'''
+    '''Constante piézoélectrique: k^2.'''
 
     ''''''
 
@@ -242,6 +249,7 @@ class Expressions:
 
 
 class Scope:
+    '''Object Python représentant une piste d'Oscilloscope.'''
     id: str
 
     ax_name_x: str
@@ -263,6 +271,7 @@ class Scope:
         self.y_data = scope_data[self.ax_name_y]
 
     def trace(self, spec: gridspec.SubplotSpec):
+        '''Affiche la piste associée à l'aide de `matplotlib.pyplot`.'''
         if spec is None:
             assert False, 'Missing plotting spec.'
 
@@ -271,21 +280,12 @@ class Scope:
 
 
 class Helper:
-    @staticmethod
-    def defaultUncertainty(key: str, value: float):
-        UNCERTAINTIES = {
-            'h': CONSTANTS.u_h,
-            'm': CONSTANTS.u_M,
-            'r': lambda val: abs(CONSTANTS.u_r * val),
-        }
-
-        if key not in UNCERTAINTIES:
-            return None
-
-        return UNCERTAINTIES[key](value) if hasattr(UNCERTAINTIES[key], '__call__') else UNCERTAINTIES[key]
+    '''Méthodes utiles rassemblées sous un seul objet.'''
 
     @staticmethod
     def fileToDict(path: str, line_offset: int = 0, prefix: str = 'scope_', measurements_title_line: int = 1) -> 'ExperienceData':
+        '''Convertit un fichier d'expérience en données exploitables. Importe les `Scope`s associés aux mesures.'''
+        
         with open(path, 'r') as file:
             data = {}
             lines = file.readlines()
@@ -331,10 +331,12 @@ class Helper:
 
     @staticmethod
     def fileNameFromPath(path: str):
+        '''Retourne le nom du fichier à partir du chemin d'accès.'''
         return os.path.splitext(os.path.basename(path))[0]
 
     @staticmethod
     def measurementsToScope(path: str, id: str = None, measurements_title_line: int = 1):
+        '''Convertit un fichier de points en `Scope`s avec pistes associées.'''
         with open(path, 'r') as f:
             lines = f.readlines()
             entries = [x.strip().lower() for x in lines[measurements_title_line].split(',')]
@@ -360,7 +362,22 @@ class Helper:
         }) for i in range(1, columns_count)]
 
     @staticmethod
+    def defaultUncertainty(key: str, value: float):
+        '''Retourne l'incertitude par défaut associée à une variable.'''
+        UNCERTAINTIES = {
+            'h': CONSTANTS.u_h,
+            'm': CONSTANTS.u_M,
+            'r': lambda val: abs(CONSTANTS.u_r * val),
+        }
+
+        if key not in UNCERTAINTIES:
+            return None
+
+        return UNCERTAINTIES[key](value) if hasattr(UNCERTAINTIES[key], '__call__') else UNCERTAINTIES[key]
+
+    @staticmethod
     def computeIntegral(x: list, y: list, scaling: Callable[..., any] = None):
+        '''Intègre `y` par rapport à `x`.'''
         use_uncert = True
         if (not isinstance(x[0], Value)):
             X = x
@@ -372,7 +389,7 @@ class Helper:
             Y = y
             use_uncert = False
         else:
-            Y, Y_uncert = Helper.unpackValueList([scaling(_y) for _y in y])
+            Y, Y_uncert = Helper.unpackValueList([scaling(_y) for _y in y] if scaling is not None else y)
 
         integral: float | Value = integrate.simpson(Y, X)
         uncert: float = sum([abs(_x) * u_y + abs(_y) * u_x for _x, _y, u_x, u_y in zip(X, Y, X_uncert, Y_uncert)]) if use_uncert else None
@@ -384,37 +401,18 @@ class Helper:
 
     @staticmethod
     def computeExpressions(expressions: dict[str, Expression], data: ExperienceData, id=None):
+        '''Ajoute les variables associées aux expressions dans les données de l'expérience.'''
         for expr_key, expression in expressions.items():
             if id is not None:
-                data[id][expr_key] = expression(data[id])
+                data[id][expr_key] = expression.apply(data[id])
             else:
                 for _id in data.keys():
                     assert expr_key not in data[_id].keys(), f'Key {expr_key} already exists in the dataset, cannot override.'
-                    data[_id][expr_key] = expression(data[_id])
-
-    @staticmethod
-    def trace(data: dict[str, list[Value]], scaling: Callable[..., Value] = None, save_name: str = None):
-        x_label, y_label = list(data.keys())
-        x = data[x_label]
-        y = [scaling(_y) for _y in data[y_label]]
-
-        if (not isinstance(x[0], Value)):
-            X, X_uncert = x, None
-        else:
-            X, X_uncert = Helper.unpackValueList(x)
-
-        if (isinstance(x[1], Value)):
-            Y, Y_uncert = y, None
-        else:
-            Y, Y_uncert = Helper.unpackValueList([scaling(_y) for _y in y])
-
-        plt.errorbar(X, Y, xerr=X_uncert, yerr=Y_uncert)
-
-        if save_name is not None:
-            Helper.save(save_name)
+                    data[_id][expr_key] = expression.apply(data[_id])
 
     @staticmethod
     def initializeGraph(count: int):
+        '''Retourne la specification d'un graph possèdant `count` Subplots.'''
         cols = ceil(sqrt(count))
         rows = ceil(count / cols)
         is_2D = rows > 1
@@ -422,6 +420,7 @@ class Helper:
 
     @staticmethod
     def angle(angle: float, src: Literal['deg', 'rad'], dst: Literal['deg', 'rad']):
+        '''Convertis un angle en unité `src` en angle en unité `dst`.'''
         if not (src in ('deg', 'rad') and dst in ('deg', 'rad')):
             assert False, 'Unknown value for source or destination unit.'
 
@@ -440,6 +439,7 @@ class Helper:
 
     @staticmethod
     def impedenceFromScope(path: str, R: Value, f_min: float, f_max: float):
+        '''Calcule l'impédence associée à un élément du circuit à partir des données brutes de l'Oscilloscope.'''
         # Z = U / I
 
         scopes = Helper.measurementsToScope(path)
@@ -460,6 +460,7 @@ class Helper:
 
     @staticmethod
     def coefficient(coeff: str, fm: float, fM: float):
+        '''Calcule les coefficients piézoélectriques.'''
         if coeff == 'k31':
             fMOverfm = fM / fm
             piOverTwo = pi / 2
@@ -470,6 +471,7 @@ class Helper:
 
     @staticmethod
     def expect(result: float, expected: float, unit: str):
+        '''Renvoie la marge d'erreur entre le résultat et la valeur attendue.'''
         def appendUnit(s: str):
             return s + (f' {unit}' if unit else '')
 
@@ -481,6 +483,7 @@ class Helper:
 
     @staticmethod
     def formatFileName(exp_name: str, args: list[tuple[str, str]] | str = None):
+        '''Renvoie un format de fichier lisible et représentant l'expérience.'''
         s = exp_name
         if args is not None:
             if isinstance(args, list):
@@ -495,17 +498,19 @@ class Helper:
 
     @staticmethod
     def save(exp_name: str, args: list[tuple[str, str]] | str = None, clear: bool = True):
+        '''Sauvegarde le `plot` sous les `extensions` souhaitées.'''
         fname = Helper.formatFileName(exp_name, args)
         extensions = [['images', 'png'], ['svgs', 'svg'], ['latex', 'pgf']]
         for folder, ext in extensions:
             print(f'\nSaving "{fname}.{ext}".')
             plt.savefig(f'graphs/{folder}/{fname}.{ext}')
-            print(f'Done saving "{fname}.{ext}".\n')
+            print(f'Done "{fname}.{ext}".\n')
         if clear:
             plt.clf()
 
     @staticmethod
     def unpackValueList(x: list[Value]):
+        '''Retourne deux listes (valeurs, incertitudes) associées à la liste de `Value` passée en argument.'''
         assert isinstance(x[0], Value), f'{x} is not a [Value] list.'
         values: list[float] = []
         uncerts: list[float] = []
@@ -521,29 +526,40 @@ class Helper:
 
 
 class Voltmeter:
+    '''Objet Python représentant l'intérface avec l'Arduino.'''
     port: str
-    C: float = 1000e-6              # F
-    R: float = 1.012e6              # Ohm
-    Ri: float = 319.3e3             # Ohm
-    Req: float (R * Ri) / (R + Ri)  # Ohm
-    ratio: float = 3.3 / 1024
+
+    Vmax = 3.3                              # V
+    ADCbits = 10                            # /
+    ratio: float = Vmax / (2 ** ADCbits)    # /
+
+    C: float = 1000e-6                      # F
+    R: float = 1.012e6                      # Ohm
+    Ri: float = 319.3e3                     # Ohm
+    Req: float(R * Ri) / (R + Ri)           # Ohm
 
     logging_file: str
     image_file: str
     latex_file: str
 
-    def __init__(self, port: str = None, logging_file: str = 'voltmeter/log-{}.csv', image_file: str = 'voltmeter/graph-{}.svg', latex_file: str = 'voltmeter/latex-{}.pgf') -> None:
+    def __init__(
+            self,
+            port: str = None,
+            logging_file: str = 'voltmeter/log-{}.csv',
+            image_file: str = 'voltmeter/graph-{}.svg',
+            latex_file: str = 'voltmeter/latex-{}.pgf') -> None:
         available_ports = self.listPorts()
         if ((port and port not in available_ports) or len(available_ports) != 1):
             assert False, f'Available ports: {available_ports}'
-        
+
         self.port = port or available_ports[0]
         timestamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
         self.logging_file = logging_file.format(timestamp)
-        self.image_file = logging_file.format(timestamp)
+        self.image_file = image_file.format(timestamp)
         self.latex_file = latex_file.format(timestamp)
 
     def live(self, average_on: int = 30, points: int = 500):
+        '''Trace la tension aux bornes de A0 de l'Arduino en temps réel.'''
         start = time()
 
         def get_n_points(L1: list[float], L2: list[float], n: int = points):
@@ -568,7 +584,7 @@ class Voltmeter:
             fig.savefig(self.image_file)
             fig.savefig(self.latex_file)
             plt.close(fig)
-        
+
         plt.ion()
 
         fig, ax = plt.subplots()
@@ -626,7 +642,8 @@ class Voltmeter:
 
     @staticmethod
     def listPorts():
-        ports = ['COM%s' % (i + 1) for i in range(256)]
+        '''Renvoie la liste des ports utilisables pour se connecter à l'Arduino.'''
+        ports = [f'COM{(i + 1)}' for i in range(256)]
         result = []
         for port in ports:
             try:
@@ -644,6 +661,7 @@ class Voltmeter:
 
 
 class Experiment:
+    '''Objet Python représentant une Expérience.'''
     path: str
     expressions: dict[str, Expression]
     data: dict[str, dict[str, Value | Scope]]
@@ -656,6 +674,7 @@ class Experiment:
         Helper.computeExpressions(self.expressions, self.data)
 
     def saveMeasurementScopes(self):
+        '''Sauvegarde les mesures des Scopes associés à l'expérience.'''
         count = len(self.data)
         grid, is_2D, cols, _ = Helper.initializeGraph(count)
         ids = list(self.data.keys())
@@ -666,7 +685,7 @@ class Experiment:
             if isinstance(scope, Scope):
                 scope.trace(spec)
                 scope.ax.set_title(ids[i])
-            
+
         grid.tight_layout(plt.gcf(), h_pad=0.3, w_pad=0.2)
 
         filename = Helper.fileNameFromPath(self.path)
@@ -674,7 +693,8 @@ class Experiment:
 
         Helper.save(filename, args)
 
-    def trace(self, curves: list['Curve'], show_ax_labels = True, show_pt_labels = False, ignore_ids: list[str] = None):
+    def trace(self, curves: list['Curve'], show_ax_labels=True, show_pt_labels=False, ignore_ids: list[str] = None):
+        '''Trace les courbes souhaitées à l'aide des données de l'expérience.'''
         count = len(curves)
         grid, is_2D, cols, _ = Helper.initializeGraph(count)
         for curve in curves:
@@ -694,6 +714,7 @@ class Experiment:
 
 
 class Curve:
+    '''Objet représentant une courbe à tracer.'''
     raw_data: dict[str, dict[str, Value | Scope]]
 
     x_data: list[Value]
@@ -714,7 +735,7 @@ class Curve:
 
     show_ids: bool
 
-    def __init__(self, x_entry: str, y_entry: str, use_uncert = True, x_label: str = None, y_label: str = None, show_pt_ids = False):
+    def __init__(self, x_entry: str, y_entry: str, use_uncert=True, x_label: str = None, y_label: str = None, show_pt_ids=False):
         self.raw_data = None
 
         self.x_axis_entry = x_entry
@@ -734,7 +755,7 @@ class Curve:
         self.y_data = []
 
     def populate(self, data: ExperienceData):
-        '''Populate axes with `data`.'''
+        '''Peupler la courbe à l'aide des données de `data`.'''
         for var in [self.x_axis_entry, self.y_axis_entry]:
             if var == 'graph':
                 assert False, 'Use `Helper.traceMeasurementGraphs` to trace measurement graphs.'
@@ -746,13 +767,14 @@ class Curve:
         self.raw_data = data
 
     def update(self, key: str, data: dict[str, Value]):
-        '''Updates `data` of a populated graph.'''
+        '''Met à jour un graph déjà peuplé à l'aide d'un nouveau jeu de données `data`.'''
         assert key in self.ids, f'Unknown key: {key}.'
         index = self.ids_to_index[key]
         self.x_data[index] = data[self.x_axis_entry]
         self.y_data[index] = data[self.y_axis_entry]
 
-    def trace(self, spec: gridspec.SubplotSpec, show_ax_label = True, show_pt_label = False, ignore_ids: list[str] = None):
+    def trace(self, spec: gridspec.SubplotSpec, show_ax_label=True, show_pt_label=False, ignore_ids: list[str] = None):
+        '''Trace la courbe à l'aide d'un `spec`.'''
         self.ax = plt.subplot(spec)
 
         if show_ax_label:
@@ -760,27 +782,27 @@ class Curve:
             self.ax.set_ylabel(self.y_axis_label or self.y_axis_entry)
 
         if ignore_ids is not None:
-                sorted_x_data: list[float] = []
-                sorted_x_uncert: list[float] = []
-                sorted_y_data: list[float] = []
-                sorted_y_uncert: list[float] = []
+            sorted_x_data: list[float] = []
+            sorted_x_uncert: list[float] = []
+            sorted_y_data: list[float] = []
+            sorted_y_uncert: list[float] = []
 
-                for i, key in enumerate(self.raw_data):
-                    if key in ignore_ids:
-                        pass
-                    else:
-                        x: Value = self.raw_data[key][self.x_axis_entry]
-                        y: Value = self.raw_data[key][self.y_axis_entry]
-                        sorted_x_data.append(x.value)
-                        sorted_x_uncert.append(x.uncert or 0)
-                        sorted_y_data.append(y.value)
-                        sorted_y_uncert.append(y.uncert or 0)
+            for i, key in enumerate(self.raw_data):
+                if key in ignore_ids:
+                    pass
+                else:
+                    x: Value = self.raw_data[key][self.x_axis_entry]
+                    y: Value = self.raw_data[key][self.y_axis_entry]
+                    sorted_x_data.append(x.value)
+                    sorted_x_uncert.append(x.uncert or 0)
+                    sorted_y_data.append(y.value)
+                    sorted_y_uncert.append(y.uncert or 0)
 
-                        if show_pt_label:
-                            self.ax.annotate(key, (x.value, y.value), textcoords='offset points', xytext=(0, 5), ha='center')
+                    if show_pt_label:
+                        self.ax.annotate(key, (x.value, y.value), textcoords='offset points', xytext=(0, 5), ha='center')
 
-                self.ax.errorbar(sorted_x_data, sorted_y_data, yerr=sorted_y_uncert, xerr=sorted_x_uncert,
-                                ecolor='firebrick', ls='', marker='+', mfc='royalblue', mec='royalblue',)
+            self.ax.errorbar(sorted_x_data, sorted_y_data, yerr=sorted_y_uncert, xerr=sorted_x_uncert,
+                             ecolor='firebrick', ls='', marker='+', mfc='royalblue', mec='royalblue',)
 
         else:
             x_data, x_uncert = Helper.unpackValueList(self.x_data)
@@ -799,6 +821,3 @@ class Curve:
             if show_pt_label:
                 for i, key in enumerate(self.raw_data):
                     self.ax.annotate(key, (x_data[i], y_data[i]), textcoords='offset points', xytext=(0, 5), ha='center')
-
-    def axis(self):
-        return self.ax

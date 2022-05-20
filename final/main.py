@@ -142,27 +142,27 @@ if __name__ == '__main__':
     #              Tests
     # ================================
 
-    # Tests.Empty()
-    # Tests.Square()
+    Tests.Empty()
+    Tests.Square()
 
     # ================================
     #          Calibrations
     # ================================
 
-    # Calibrations.Calibration1()
-    # Calibrations.Calibration2()
-    # Calibrations.Calibration3(1)
-    # Calibrations.Calibration3(2)
-    # Calibrations.Calibration3(3)
-    # Calibrations.Calibration3(4)
+    Calibrations.Calibration1()
+    Calibrations.Calibration2()
+    Calibrations.Calibration3(1)
+    Calibrations.Calibration3(2)
+    Calibrations.Calibration3(3)
+    Calibrations.Calibration3(4)
 
     # ================================
     #           Experiments
     # ================================
 
-    # Experiments.Experiment1()
-    # Experiments.Experiment2()
-    # Experiments.Experiment3()
+    Experiments.Experiment1()
+    Experiments.Experiment2()
+    Experiments.Experiment3()
     Experiments.Experiment4()
     Experiments.Experiment5()
 
