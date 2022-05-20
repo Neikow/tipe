@@ -1,5 +1,6 @@
+from matplotlib.pyplot import xlabel, ylabel
 from tipe.piezo import *
-os.chdir('E:\OneDrive\.school\.tipe\code')
+os.chdir('E:\\OneDrive\\.school\\.tipe\\code')
 
 
 class Tests:
@@ -8,7 +9,7 @@ class Tests:
     def FingerShock():
         '''Testing the plotting algorithm.'''
         D = Helper.measurementsToScope('measures/tests/finger_shock.csv')[0]
-        D.trace(Helper.initializeGraph(1)[0][0])
+        D.trace(Helper.initializeGraph(1)[0][0], x_label=r'$T$ (s)', y_label=r'$U$ (V)')
         Helper.save('finger_shock')
 
     @staticmethod
@@ -18,7 +19,7 @@ class Tests:
         D = Helper.measurementsToScope('measures/tests/empty_noise_test.csv')[0]
 
         Helper.expect(Helper.computeIntegral(D.x_data, D.y_data, scaling=lambda x: x * x / R), 0, 'J')
-        D.trace(Helper.initializeGraph(1)[0][0])
+        D.trace(Helper.initializeGraph(1)[0][0], x_label=r'$T$ (s)', y_label=r'$U$ (V)')
         Helper.save('empty_noise')
 
     @staticmethod
@@ -27,9 +28,10 @@ class Tests:
         R = 1
         D = Helper.measurementsToScope('measures/tests/square_signal.csv')[0]
 
-        Helper.expect(Helper.computeIntegral(D.x_data, D.y_data, scaling=lambda x: x * x / R), 0.1, 'J')
-        D.trace(Helper.initializeGraph(1)[0][0])
+        Helper.expect(Helper.computeIntegral(D.x_data, D.y_data, scaling=lambda x: x ** 2 / R), 0.1, 'J')
+        D.trace(Helper.initializeGraph(1)[0][0], x_label=r'$T$ (s)', y_label=r'$U$ (V)')
         Helper.save('square')
+
 
 class Calibrations:
     '''Various calibrations to learn more about our equipment.'''
@@ -41,7 +43,7 @@ class Calibrations:
             'phi': Expression(lambda phi_deg: Helper.angle(phi_deg, 'deg', 'rad')),
         })
 
-        E.trace([Curve('f', 'Z')])
+        E.trace([Curve('f', 'Z', x_label=r'$f$ (Hz)', y_label=r'$Z$ ($\Omega$)')])
 
     @staticmethod
     def Calibration2():
@@ -51,7 +53,7 @@ class Calibrations:
             'phi': Expression(lambda phi_deg: Helper.angle(phi_deg, 'deg', 'rad')),
         })
 
-        E.trace([Curve('f', 'Z')])
+        E.trace([Curve('f', 'Z', x_label=r'$f$ (Hz)', y_label=r'$Z$ ($\Omega$)')])
 
     @staticmethod
     def Calibration3(scope_id: int):
@@ -83,8 +85,9 @@ class Calibrations:
         print(Helper.coefficient('k31', 1.96e5, 2.13e5))
         print(Helper.coefficient('k31', 2.85e5, 3.10e5))
 
-        S.trace(Helper.initializeGraph(1)[0][0])
+        S.trace(Helper.initializeGraph(1)[0][0], x_label=r'$f$ (Hz)', y_label=r'$Z$ ($\Omega$)')
         Helper.save(f'piezo_calibration3-{scope_id}')
+
 
 class Experiments:
     '''Experiments conducted during the project.'''
@@ -98,7 +101,7 @@ class Experiments:
     def Experiment2():
         '''???'''
         E = Experiment('measures/exp2.csv', {})
-        E.saveMeasurementScopes()    
+        E.saveMeasurementScopes()
 
     @staticmethod
     def Experiment3():
@@ -112,7 +115,8 @@ class Experiments:
             'Ee_Ep': Expressions.EeOverEp,
         })
 
-        E.trace([Curve('h', 'Ee'), Curve('h', 'Ee_Ep')])
+        E.trace([Curve('h', 'Ee', x_label=r'$h$ (m)', y_label=r'$E_e$ (J)'), Curve(
+            'h', 'Ee_Ep', x_label=r'$h$ (m)', y_label=r'$k^{2}_{33}$')])
 
     @staticmethod
     def Experiment4():
@@ -123,10 +127,11 @@ class Experiments:
             'Ee_Ep': Expressions.EeOverEp,
         })
 
-        E.trace([Curve('r', 'Ee'), Curve('r', 'Ee_Ep')], show_pt_labels=False, ignore_ids=['62', '63', '64', '65', '66', '67', '68', '69', '70', '71'])
+        E.trace([Curve('r', 'Ee', x_label=r'$R$ ($\Omega$)', y_label=r'$E_e$ (J)'), Curve('r', 'Ee_Ep', x_label=r'$R$ ($\Omega$)', y_label=r'$k^{2}_{33}$')], show_pt_labels=False,
+                ignore_ids=['62', '63', '64', '65', '66', '67', '68', '69', '70', '71'])
 
     @staticmethod
-    def Experiment5(default: bool = True):
+    def Experiment5():
         E = Experiment('measures/exp5.csv', {
             'Ee': Expressions.Ee,
             'Ep': Expressions.Ep,
@@ -134,7 +139,7 @@ class Experiments:
         })
 
         E.saveMeasurementScopes()
-        E.trace([Curve('Ee', 'Ee_Ep'), Curve('h', 'Ee_Ep')])
+        E.trace([Curve('Ee', 'Ee_Ep', x_label=r'$E_e$ (J)', y_label=r'$k^{2}_{33}$'), Curve('h', 'Ee_Ep', x_label=r'$h$ (m)', y_label=r'$k^{2}_{33}$')])
 
 
 if __name__ == '__main__':
@@ -142,8 +147,9 @@ if __name__ == '__main__':
     #              Tests
     # ================================
 
-    Tests.Empty()
-    Tests.Square()
+    # Tests.FingerShock()
+    # Tests.Empty()
+    # Tests.Square()
 
     # ================================
     #          Calibrations

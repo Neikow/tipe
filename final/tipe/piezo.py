@@ -269,13 +269,15 @@ class Scope:
         self.x_data = scope_data[self.ax_name_x]
         self.y_data = scope_data[self.ax_name_y]
 
-    def trace(self, spec: gridspec.SubplotSpec):
+    def trace(self, spec: gridspec.SubplotSpec, x_label = None, y_label = None):
         '''Affiche la piste associée à l'aide de `matplotlib.pyplot`.'''
         if spec is None:
             assert False, 'Missing plotting spec.'
 
         self.ax = plt.subplot(spec)
         self.ax.plot(self.x_data, self.y_data)
+        self.ax.set_xlabel(x_label or self.ax_name_x)
+        self.ax.set_ylabel(y_label or self.ax_name_y)
 
 
 class Helper:
@@ -384,12 +386,12 @@ class Helper:
         else:
             X, X_uncert = Helper.unpackValueList(x)
 
-        if (isinstance(x[1], Value)):
+        if (not isinstance(x[1], Value)):
             Y = y
             use_uncert = False
         else:
             Y, Y_uncert = Helper.unpackValueList([scaling(_y) for _y in y] if scaling is not None else y)
-
+        
         integral: float | Value = integrate.simpson(Y, X)
         uncert: float = sum([abs(_x) * u_y + abs(_y) * u_x for _x, _y, u_x, u_y in zip(X, Y, X_uncert, Y_uncert)]) if use_uncert else None
 
@@ -702,6 +704,8 @@ class Experiment:
         for i in range(count):
             spec = grid[i // cols, i % cols] if is_2D else grid[i]
             curves[i].trace(spec, show_ax_labels, show_pt_labels, ignore_ids)
+
+        grid.tight_layout(plt.gcf(), h_pad=0.3, w_pad=0.2)
 
         filename = Helper.fileNameFromPath(self.path)
         args = [(curve.x_axis_entry, curve.y_axis_entry) for curve in curves]
