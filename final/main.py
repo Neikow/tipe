@@ -171,7 +171,7 @@ class Experiments:
             'Ee_Ep': Expressions.EeOverEp,
         })
 
-        # E.saveMeasurementScopes(show_title=False, ticksize=5)
+        E.saveMeasurementScopes(show_title=False, ticksize=5)
 
         ignore_ids = ['1', '12', '23', '24', '34', '35']
 
@@ -190,6 +190,39 @@ class Experiments:
             Curve('h', 'Ee_Ep', x_label=r'$h$ (m)', y_label=r'$k^{2}_{33}$')
         ], ignore_ids=ignore_ids)
 
+    @staticmethod
+    def Experiment6():
+        V1, E1 = Helper.measurementsToScope('voltmeter\log-2022-05-21-15-57-53.csv', measurements_title_line=0)
+        V1.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'Tension (V)')
+        Helper.save('voltmeter voltage 5min (+10g)')
+
+        E1.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'$E_{e}$ (J)')
+        Helper.save('voltmeter energy 5min (+10g)')
+        
+        V2, E2 = Helper.measurementsToScope('voltmeter\log-2022-05-21-16-23-27.csv', measurements_title_line=0)
+        V2.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'Tension (V)')
+        Helper.save('voltmeter voltage 5min (+0g)')
+        
+        E2.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'$E_{e}$ (J)')
+        Helper.save('voltmeter energy 5min (+0g)')
+
+        V3, E3  =Helper.measurementsToScope('voltmeter/log-2022-05-21-16-56-13.csv', measurements_title_line=0)
+        V3.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'Tension (V)')
+        Helper.save('voltmeter voltage 5min (+5g)')
+        
+        E3.trace(Helper.initializeGraph(1)[0][0], x_label=r'Temps (s)', y_label=r'$E_{e}$ (J)')
+        Helper.save('voltmeter energy 5min (+5g)')
+
+        E1.trace(Helper.initializeGraph(1)[0][0], label=r'$10$ g', x_label=r'Temps (s)', y_label=r'$E_{e}$ (J)')
+        E1.traceOther(E2, color='crimson', label=r'$0$ g')
+        E1.addLegend()
+        Helper.save('voltmeter energy 5 min both')
+
+        E1.trace(Helper.initializeGraph(1)[0][0], label=r'$10$ g', x_label=r'Temps (s)', y_label=r'$E_{e}$ (J)')
+        E1.traceOther(E3, color='forestgreen', label=r'$5$ g')
+        E1.traceOther(E2, color='crimson', label=r'$0$ g')
+        E1.addLegend()
+        Helper.save('voltmeter energy 5 min all three')
 
 if __name__ == '__main__':
     # ================================
@@ -223,14 +256,11 @@ if __name__ == '__main__':
     # Experiments.Experiment2()
     # Experiments.Experiment3()
     # Experiments.Experiment4()
-    Experiments.Experiment5()
-
-    # D = Helper.fileToData('measures/standalone.csv')
-    # Helper.computeExpressions('data', {
-    #     'Ee': Expressions.Ee, 'Ep': Expressions.Ep, 'Ee_Ep': Expressions.Ee_Ep
-    # }, D)
+    # Experiments.Experiment5()
+    Experiments.Experiment6()
 
     # ================================
     #           Charging
     # ================================
+
     # Voltmeter().live(average_on=10)

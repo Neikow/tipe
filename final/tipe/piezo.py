@@ -312,7 +312,14 @@ class Scope:
     def traceOther(self, other: 'Scope', color: str = None, label: str = None):
         '''Ajoute la piste associée à `other` sur le plot actuel.'''
         assert self.ax, 'A plot must exist.'
-        self.ax.plot(self.custom_x_data, other.y_data, label=label, color=color)
+        if (len(self.custom_x_data if self.custom_x_data is not None else self.x_data) != len(other.x_data)):
+            self.ax.plot(other.x_data, other.y_data, label=label, color=color)
+        else:
+            self.ax.plot(self.custom_x_data if self.custom_x_data is not None else self.x_data, other.y_data, label=label, color=color)
+
+
+
+
 
     def addLegend(self):
         '''Ajoute une légende au plot actuel.'''
@@ -753,7 +760,7 @@ class Experiment:
                 scope.trace(spec, show_labels=False, ticksize=ticksize)
                 if show_title:
                     scope.ax.set_title(ids[i])
-
+        
         grid.tight_layout(plt.gcf(), h_pad=0.05, w_pad=0.1)
 
         filename = Helper.fileNameFromPath(self.path)
