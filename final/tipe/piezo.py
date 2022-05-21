@@ -16,14 +16,25 @@ from scipy import integrate
 #          Matplotlib Settings
 # ====================================
 
-
-mpl.use('pgf')
-mpl.rcParams.update({
+DEFAULT_MPL_CONFIG = {
+    'pgf.texsystem': 'xelatex',
+    'font.family': 'sans-serif',
+    'axes.labelsize': 'medium',
+    'text.usetex': False,
+    'pgf.rcfonts': True,
+    'figure.dpi': 100,
+}
+LATEX_MPL_CONFIG = {
     'pgf.texsystem': 'xelatex',
     'font.family': 'serif',
+    'axes.labelsize': 16,
     'text.usetex': True,
     'pgf.rcfonts': False,
-})
+    'figure.dpi': 200,
+}
+
+mpl.use('pgf')
+mpl.rcParams.update(LATEX_MPL_CONFIG)
 
 
 # ====================================
@@ -57,7 +68,6 @@ class Value:
         '''Renvoie un `tuple` associé à l'objet.'''
         return (self.value, self.uncert)
 
-
     def __str__(self):
         if self.uncert is None or self.uncert <= 0:
             return f'{self.value}'
@@ -69,7 +79,6 @@ class Value:
 
     def __repr__(self):
         return self.__str__()
-
 
     def __add__(self, other):
         if isinstance(other, (int, float)):
@@ -210,7 +219,7 @@ class Expression:
                 value = data.get(arg)
             else:
                 value = self.defaults.get(arg)
-            
+
             if value is None:
                 assert False, f'Unknown key {arg}. Available keys: {list(data.keys())}.'
 
@@ -257,6 +266,8 @@ class Scope:
     x_data: list[float]
     y_data: list[float]
 
+    custom_x_data: list[float]
+
     ax: plt.Axes
 
     def __init__(self, id: str, scope_data: ScopeData) -> None:
@@ -264,29 +275,58 @@ class Scope:
 
         self.id = id
 
+        self.custom_x_data = None
+
         self.ax_name_x = keys[0]
         self.ax_name_y = keys[1]
         self.x_data = scope_data[self.ax_name_x]
         self.y_data = scope_data[self.ax_name_y]
 
-    def trace(self, spec: gridspec.SubplotSpec, x_label = None, y_label = None):
+    def trace(
+            self,
+            spec: gridspec.SubplotSpec,
+            x_label=None,
+            y_label=None,
+            x_minmax=None,
+            color: str = 'royalblue',
+            show_labels=True,
+            ticksize: float = None,
+            label: str = None):
         '''Affiche la piste associée à l'aide de `matplotlib.pyplot`.'''
-        if spec is None:
-            assert False, 'Missing plotting spec.'
+        assert spec, 'Missing plotting spec.'
+        assert (not x_minmax) or (x_minmax and len(x_minmax) == 2), 'Min and max values must be given.'
+
+        if x_minmax:
+            self.custom_x_data = np.linspace(*x_minmax, len(self.x_data))
 
         self.ax = plt.subplot(spec)
-        self.ax.plot(self.x_data, self.y_data)
-        self.ax.set_xlabel(x_label or self.ax_name_x)
-        self.ax.set_ylabel(y_label or self.ax_name_y)
+        self.ax.plot(self.custom_x_data if self.custom_x_data is not None else self.x_data, self.y_data, label=label, color=color)
+
+        if ticksize is not None:
+            self.ax.tick_params(pad=ticksize / 2, labelsize=ticksize)
+
+        if show_labels:
+            self.ax.set_xlabel(x_label or self.ax_name_x)
+            self.ax.set_ylabel(y_label or self.ax_name_y)
+
+    def traceOther(self, other: 'Scope', color: str = None, label: str = None):
+        '''Ajoute la piste associée à `other` sur le plot actuel.'''
+        assert self.ax, 'A plot must exist.'
+        self.ax.plot(self.custom_x_data, other.y_data, label=label, color=color)
+
+    def addLegend(self):
+        '''Ajoute une légende au plot actuel.'''
+        assert self.ax, 'A plot must exist.'
+        self.ax.legend(fontsize=mpl.rcParams['axes.labelsize'])
 
 
 class Helper:
     '''Méthodes utiles rassemblées sous un seul objet.'''
 
-    @staticmethod
+    @ staticmethod
     def fileToDict(path: str, line_offset: int = 0, prefix: str = 'scope_', measurements_title_line: int = 1) -> 'ExperienceData':
         '''Convertit un fichier d'expérience en données exploitables. Importe les `Scope`s associés aux mesures.'''
-        
+
         with open(path, 'r') as file:
             data = {}
             lines = file.readlines()
@@ -330,12 +370,12 @@ class Helper:
 
         return data
 
-    @staticmethod
+    @ staticmethod
     def fileNameFromPath(path: str):
         '''Retourne le nom du fichier à partir du chemin d'accès.'''
         return os.path.splitext(os.path.basename(path))[0]
 
-    @staticmethod
+    @ staticmethod
     def measurementsToScope(path: str, id: str = None, measurements_title_line: int = 1):
         '''Convertit un fichier de points en `Scope`s avec pistes associées.'''
         with open(path, 'r') as f:
@@ -362,7 +402,7 @@ class Helper:
             entries[i]: temp_data[entries[i]]
         }) for i in range(1, columns_count)]
 
-    @staticmethod
+    @ staticmethod
     def defaultUncertainty(key: str, value: float):
         '''Retourne l'incertitude par défaut associée à une variable.'''
         UNCERTAINTIES = {
@@ -391,7 +431,7 @@ class Helper:
             use_uncert = False
         else:
             Y, Y_uncert = Helper.unpackValueList([scaling(_y) for _y in y] if scaling is not None else y)
-        
+
         integral: float | Value = integrate.simpson(Y, X)
         uncert: float = sum([abs(_x) * u_y + abs(_y) * u_x for _x, _y, u_x, u_y in zip(X, Y, X_uncert, Y_uncert)]) if use_uncert else None
 
@@ -467,6 +507,12 @@ class Helper:
             piOverTwo = pi / 2
             T = piOverTwo * fMOverfm * tan(piOverTwo * (fMOverfm - 1))
             return sqrt(T / (1 + T))
+        if coeff == 'k33':
+            piOverTwo = pi / 2
+            fmOverfM = fm / fM
+            T = piOverTwo * fmOverfM * tan(piOverTwo * (1 - fmOverfM))
+            return T
+
         else:
             assert False, f'Unknown coefficient: "{coeff}".'
 
@@ -537,7 +583,7 @@ class Voltmeter:
     C: float = 1000e-6                      # F
     R: float = 1.012e6                      # Ohm
     Ri: float = 319.3e3                     # Ohm
-    Req: float(R * Ri) / (R + Ri)           # Ohm
+    Req: float = (R * Ri) / (R + Ri)        # Ohm
 
     logging_file: str
     image_file: str
@@ -561,6 +607,12 @@ class Voltmeter:
 
     def live(self, average_on: int = 30, points: int = 500):
         '''Trace la tension aux bornes de A0 de l'Arduino en temps réel.'''
+        mpl.use('TkAgg')
+        mpl.rcParams.update(DEFAULT_MPL_CONFIG)
+
+        T = []
+        V = []
+
         start = time()
 
         def get_n_points(L1: list[float], L2: list[float], n: int = points):
@@ -582,8 +634,24 @@ class Voltmeter:
                 return new_L1, new_L2
 
         def close(_=None):
+            mpl.use('pgf')
+            mpl.rcParams.update(LATEX_MPL_CONFIG)
+
+            plt.clf()
+
+            fig, ax = plt.subplots()
+
+            ax.set_xlabel('Temps (s)')
+            ax.set_ylabel('Tension (V)')
+
+            plt.plot(*get_n_points(T, V), c='royalblue', marker='o', linestyle='', markersize=0.8)
+
+            print(f'\nSaving "{self.image_file}".')
             fig.savefig(self.image_file)
+            print(f'Done "{self.image_file}".\n')
+            print(f'\nSaving "{self.latex_file}".')
             fig.savefig(self.latex_file)
+            print(f'Done "{self.latex_file}".\n')
             plt.close(fig)
 
         plt.ion()
@@ -591,6 +659,7 @@ class Voltmeter:
         fig, ax = plt.subplots()
 
         fig.canvas.mpl_connect('close_event', close)
+
         ax.set_xlabel('Temps (s)')
         ax.set_ylabel('Tension (V)')
 
@@ -604,9 +673,6 @@ class Voltmeter:
             fig.canvas.flush_events()
 
         plt.show()
-
-        T = []
-        V = []
 
         correction = 0.08
 
@@ -674,7 +740,7 @@ class Experiment:
 
         Helper.computeExpressions(self.expressions, self.data)
 
-    def saveMeasurementScopes(self):
+    def saveMeasurementScopes(self, show_title=True, ticksize: float = None):
         '''Sauvegarde les mesures des Scopes associés à l'expérience.'''
         count = len(self.data)
         grid, is_2D, cols, _ = Helper.initializeGraph(count)
@@ -684,17 +750,23 @@ class Experiment:
             spec = grid[i // cols, i % cols] if is_2D else grid[i]
             scope = self.data[ids[i]]['scope']
             if isinstance(scope, Scope):
-                scope.trace(spec)
-                scope.ax.set_title(ids[i])
+                scope.trace(spec, show_labels=False, ticksize=ticksize)
+                if show_title:
+                    scope.ax.set_title(ids[i])
 
-        grid.tight_layout(plt.gcf(), h_pad=0.3, w_pad=0.2)
+        grid.tight_layout(plt.gcf(), h_pad=0.05, w_pad=0.1)
 
         filename = Helper.fileNameFromPath(self.path)
         args = 'measurements'
 
         Helper.save(filename, args)
 
-    def trace(self, curves: list['Curve'], show_ax_labels=True, show_pt_labels=False, ignore_ids: list[str] = None):
+    def trace(
+            self,
+            curves: list['Curve'],
+            show_ax_labels=True,
+            show_pt_labels=False,
+            ignore_ids: list[str] = None):
         '''Trace les courbes souhaitées à l'aide des données de l'expérience.'''
         count = len(curves)
         grid, is_2D, cols, _ = Helper.initializeGraph(count)
@@ -736,9 +808,7 @@ class Curve:
 
     use_uncert: bool
 
-    show_ids: bool
-
-    def __init__(self, x_entry: str, y_entry: str, use_uncert=True, x_label: str = None, y_label: str = None, show_pt_ids=False):
+    def __init__(self, x_entry: str, y_entry: str, use_uncert=True, x_label: str = None, y_label: str = None):
         self.raw_data = None
 
         self.x_axis_entry = x_entry
@@ -751,8 +821,6 @@ class Curve:
 
         self.point_labels = []
         self.ids_to_index = {}
-
-        self.show_ids = show_pt_ids
 
         self.x_data = []
         self.y_data = []
